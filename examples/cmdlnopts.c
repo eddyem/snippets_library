@@ -32,15 +32,15 @@
 int help;
 glob_pars  G;
 
-#define DEFAULT_COMDEV  "/dev/ttyUSB0"
 // default PID filename:
 #define DEFAULT_PIDFILE "/tmp/testcmdlnopts.pid"
 
 //            DEFAULTS
 // default global parameters
 glob_pars const Gdefault = {
-    .device = DEFAULT_COMDEV,
+    .device = NULL,
     .pidfile = DEFAULT_PIDFILE,
+    .speed = 9600,
     .logfile = NULL // don't save logs
 };
 
@@ -51,7 +51,8 @@ glob_pars const Gdefault = {
 myoption cmdlnopts[] = {
 // common options
     {"help",    NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
-    {"device",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.device),    _("serial device name (default: " DEFAULT_COMDEV ")")},
+    {"device",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.device),    _("serial device name")},
+    {"speed",   NEED_ARG,   NULL,   's',    arg_int,    APTR(&G.speed),     _("serial device speed (default: 9600)")},
     {"logfile", NEED_ARG,   NULL,   'l',    arg_string, APTR(&G.logfile),   _("file to save logs")},
     {"pidfile", NEED_ARG,   NULL,   'P',    arg_string, APTR(&G.pidfile),   _("pidfile (default: " DEFAULT_PIDFILE ")")},
    end_option

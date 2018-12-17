@@ -16,12 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <usefull_macros.h>
 #include <signal.h>         // signal
 #include <stdlib.h>         // exit, free
 #include <stdio.h>          // printf
 #include <string.h>         // strdup
 #include <unistd.h>         // sleep
+#include <usefull_macros.h>
 #include "cmdlnopts.h"
 
 /**
@@ -34,15 +34,22 @@
  * The `cmdlnopts.[hc]` are intrinsic files of this demo.
  */
 
+TTY_descr *dev = NULL; // shoul be global to restore if die
+glob_pars *GP = NULL;  // for GP->pidfile need in `signals`
+
 /**
  * We REDEFINE the default WEAK function of signal processing
  */
 void signals(int sig){
-    signal(sig, SIG_IGN);
-    restore_console();
-    restore_tty();
-    DBG("Get signal %d, quit.\n", sig);
+    if(sig){
+        signal(sig, SIG_IGN);
+        DBG("Get signal %d, quit.\n", sig);
+    }
     putlog("Exit with status %d", sig);
+    if(GP->pidfile) // remove unnesessary PID file
+        unlink(GP->pidfile);
+    restore_console();
+    close_tty(&dev);
     exit(sig);
 }
 
@@ -53,7 +60,7 @@ void iffound_default(pid_t pid){
 int main(int argc, char *argv[]){
     initial_setup();
     char *self = strdup(argv[0]);
-    glob_pars *GP = parse_args(argc, argv);
+    GP = parse_args(argc, argv);
     if(GP->rest_pars_num){
         printf("%d extra options:\n", GP->rest_pars_num);
         for(int i = 0; i < GP->rest_pars_num; ++i)
@@ -69,13 +76,32 @@ int main(int argc, char *argv[]){
     if(GP->logfile) openlogfile(GP->logfile);
     setup_con();
     putlog(("Start application..."));
-    ; // main stuff goes here
-    green("Now I will sleep for 10 seconds. Do whatever you want.\n");
-    sleep(10);
-    ; // clean everything
-    if(GP->pidfile) // remove unnesessary PID file
-        unlink(GP->pidfile);
-    restore_console();
-    restore_tty();
+    if(GP->rest_pars_num){
+        for(int i = 0; i < GP->rest_pars_num; ++i)
+            printf("Extra argument: %s\n", GP->rest_pars[i]);
+    }
+    if(GP->device){
+        putlog("Try to open serial %s", GP->device);
+        dev = tty_open(GP->device, GP->speed, 256);
+        if(!dev){
+            putlog("Can't open %s with speed %d. Exit.", GP->device, GP->speed);
+            signals(0);
+        }
+    }
+    // main stuff goes here
+    long seed = throw_random_seed();
+    green("Now I will sleep for 10 seconds. Do whatever you want. Random seed: %ld\n", seed);
+    double t0 = dtime();
+    while(dtime() - t0 < 10.){ // read data from port and print in into terminal
+        if(dev){
+            if(read_tty(dev)){
+                printf("Data from port: %s\n", dev->buf);
+            }
+            char ch = read_console();
+            if(ch) write_tty(dev->comfd, &ch, 1);
+        }
+    }
+    // clean everything
+    signals(0);
     return 0;
 }

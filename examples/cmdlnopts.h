@@ -30,6 +30,7 @@ typedef struct{
     char *device;           // serial device name
     char *pidfile;          // name of PID file
     char *logfile;          // logging to this file
+    int speed;              // connection speed
     int rest_pars_num;      // number of rest parameters
     char** rest_pars;       // the rest parameters: array of char*
 } glob_pars;

@@ -8,3 +8,4 @@ link_libraries(usefull_macros)
 # exe list
 add_executable(helloworld helloworld.c)
 add_executable(options options.c cmdlnopts.c)
+add_executable(fifo fifo.c)

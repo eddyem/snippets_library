@@ -33,6 +33,7 @@
 #include <time.h>
 #include <sys/types.h>
 #include <linux/limits.h> // PATH_MAX
+#include <math.h>         // floor
 
 #include "usefull_macros.h"
 
@@ -61,11 +62,6 @@ double dtime(){
  *                          Coloured terminal
 \******************************************************************************/
 int globErr = 0; // errno for WARN/ERR
-
-// pointers to coloured output printf
-int (*red)(const char *fmt, ...);
-int (*green)(const char *fmt, ...);
-int (*_WARN)(const char *fmt, ...);
 
 /**
  * @brief r_pr_, g_pr_ - format red / green messages
@@ -111,6 +107,11 @@ int r_WARN(const char *fmt, ...){
     fprintf(stderr, COLOR_OLD "\n");
     return i;
 }
+
+// pointers to coloured output printf
+int (*red)(const char *fmt, ...) = r_pr_;
+int (*green)(const char *fmt, ...) = g_pr_;
+int (*_WARN)(const char *fmt, ...) = r_WARN;
 
 static const char stars[] = "****************************************";
 /**
@@ -164,6 +165,49 @@ void initial_setup(){
     textdomain(GETTEXT_PACKAGE);
 #endif
 }
+
+/******************************************************************************\
+ *                                  Different things
+\******************************************************************************/
+
+/**
+* @brief throw_random_seed - Generate a quasy-random number to initialize PRNG
+* @return value for srand48
+*/
+long throw_random_seed(){
+    long r_ini;
+    int fail = 0;
+    int fd = open("/dev/random", O_RDONLY);
+    do{
+        if(-1 == fd){
+            /// Не могу открыть /dev/random
+            WARN(_("Can't open /dev/random"));
+            fail = 1; break;
+        }
+        if(sizeof(long) != read(fd, &r_ini, sizeof(long))){
+            /// Не могу прочесть /dev/random
+            WARN(_("Can't read /dev/random"));
+            fail = 1;
+        }
+        close(fd);
+    }while(0);
+    if(fail){
+        double tt = dtime() * 1e6;
+        double mx = (double)LONG_MAX;
+        r_ini = (long)(tt - mx * floor(tt/mx));
+    }
+    return (r_ini);
+}
+
+/**
+ * @brief get_available_mem
+ * @return system available physical memory
+ */
+uint64_t get_available_mem(){
+    return sysconf(_SC_AVPHYS_PAGES) * (uint64_t) sysconf(_SC_PAGE_SIZE);
+}
+
+
 
 /******************************************************************************\
  *                                  Memory
@@ -300,122 +344,6 @@ int mygetchar(){
     return ret;
 }
 
-
-/******************************************************************************\
- *                              TTY with select()
- * BE CAREFULL! These functions aren't thread-safe!
- * BE CAREFULL! These functions are for one serial port only!
-\******************************************************************************/
-static struct termios oldtty, tty; // TTY flags
-static int comfd = -1; // TTY fd
-
-/**
- * @brief restore_tty - restore port settings to previous
- */
-void restore_tty(){
-    if(comfd == -1) return;
-    if(oldtty.c_cflag)
-        tcsetattr(comfd, TCSANOW, &oldtty); // return TTY to previous state
-    close(comfd);
-    comfd = -1;
-}
-
-/**
- * @brief tty_init   - init port with 8N1 in non-blocking RW mode
- * @param comdev (i) - port device
- * @param speed      - communication speed
- */
-void tty_init(char *comdev, tcflag_t speed){
-    if(comfd == -1){ // not opened
-        if(!comdev){
-            WARNX("comdev == NULL");
-            signals(11);
-        }
-        DBG("Open port...");
-        do{
-            comfd = open(comdev, O_RDWR|O_NOCTTY|O_NONBLOCK);
-        }while (comfd == -1 && errno == EINTR);
-        if(comfd < 0){
-            /// Не могу открыть порт %s
-            WARN(_("Can't open port %s"),comdev);
-            signals(2);
-        }
-        if(tcgetattr(comfd, &oldtty)){  // Get settings
-            /// Не могу получить настройки порта
-            WARN(_("Can't get port settings"));
-            oldtty.c_cflag = 0;
-        }
-        DBG("Make exclusive");
-        // make exclusive open
-        if(ioctl(comfd, TIOCEXCL)){
-            /// Не могу перевести порт в эксклюзивный режим
-            WARN(_("Can't do exclusive open"));
-            close(comfd);
-            signals(2);
-        }
-    }
-    tty = oldtty;
-    tty.c_lflag     = 0; // ~(ICANON | ECHO | ECHOE | ISIG)
-    tty.c_oflag     = 0;
-    tty.c_cflag     = speed|CS8|CREAD|CLOCAL; // 9.6k, 8N1, RW, ignore line ctrl
-    tty.c_cc[VMIN]  = 0;  // non-canonical mode
-    tty.c_cc[VTIME] = 5;
-    if(ioctl(comfd, TCSETA, &tty) < 0){
-        /// Не могу установить настройки
-        WARN(_("Can't set settings"));
-        signals(0);
-    }
-    DBG("OK");
-}
-
-/**
- * @brief read_tty - read data from TTY with 10ms timeout
- * @param buff (o) - buffer for data read
- * @param length   - buffer len
- * @return amount of bytes read
- */
-size_t read_tty(char *buff, size_t length){
-    if(comfd < 0) return 0;
-    ssize_t L = 0, l;
-    char *ptr = buff;
-    fd_set rfds;
-    struct timeval tv;
-    int retval;
-    do{
-        l = 0;
-        FD_ZERO(&rfds);
-        FD_SET(comfd, &rfds);
-        // wait for 10ms
-        tv.tv_sec = 0; tv.tv_usec = 10000;
-        retval = select(comfd + 1, &rfds, NULL, NULL, &tv);
-        if (!retval) break;
-        if(FD_ISSET(comfd, &rfds)){
-            if((l = read(comfd, ptr, length)) < 1){
-                return 0;
-            }
-            ptr += l; L += l;
-            length -= l;
-        }
-    }while(l);
-    return (size_t)L;
-}
-
-/**
- * @brief write_tty - write data to serial port
- * @param buff (i)  - data to write
- * @param length    - its length
- * @return 0 if all OK
- */
-int write_tty(const char *buff, size_t length){
-    ssize_t L = write(comfd, buff, length);
-    if((size_t)L != length){
-        /// "Ошибка записи!"
-        WARN("Write error");
-        return 1;
-    }
-    return 0;
-}
-
 /**
  * @brief str2double - safely convert data from string to double
  * @param num (o) - double number read from string
@@ -481,7 +409,10 @@ int putlog(const char *fmt, ...){
         openlogfile(logname);
         if(!Flog) return 0;
     }
-    int i = fprintf(Flog, "\n\t\t%s", ctime(&t_now));
+    //int i = fprintf(Flog, "%s\t\t", ctime(&t_now));
+    char buf[256];
+    strftime(buf, 255, "%Y/%m/%d %H:%M:%S", localtime(&t_now));
+    int i = fprintf(Flog, "%s\t\t", buf);
     va_list ar;
     va_start(ar, fmt);
     i = vfprintf(Flog, fmt, ar);
@@ -490,3 +421,4 @@ int putlog(const char *fmt, ...){
     fflush(Flog);
     return i;
 }
+

@@ -23,10 +23,14 @@
 #ifndef __USEFULL_MACROS_H__
 #define __USEFULL_MACROS_H__
 
-#include <termios.h> // tcflag_t
-#include <stdbool.h> // bool
-#include <unistd.h>  // pid_t
-#include <errno.h>   // errno
+#include <stdbool.h>        // bool
+#include <unistd.h>         // pid_t
+#include <errno.h>          // errno
+#include <termios.h>        // termios
+#include <stdlib.h>         // alloc, free
+// just for different purposes
+#include <limits.h>
+#include <stdint.h>
 
 #if defined GETTEXT
 /*
@@ -111,9 +115,9 @@ void WEAK signals(int sig);
 double dtime();
 
 // functions for color output in tty & no-color in pipes
-int (*red)(const char *fmt, ...);
-int (*_WARN)(const char *fmt, ...);
-int (*green)(const char *fmt, ...);
+extern int (*red)(const char *fmt, ...);
+extern int (*_WARN)(const char *fmt, ...);
+extern int (*green)(const char *fmt, ...);
 // safe allocation
 void * my_alloc(size_t N, size_t S);
 // setup locales & other
@@ -133,11 +137,28 @@ void setup_con();
 int read_console();
 int mygetchar();
 
-// serial port
-void restore_tty();
-void tty_init(char *comdev, tcflag_t speed);
-size_t read_tty(char *buff, size_t length);
-int write_tty(const char *buff, size_t length);
+long throw_random_seed();
+
+uint64_t get_available_mem();
+
+/******************************************************************************\
+                         The original term.h
+\******************************************************************************/
+typedef struct {
+    char *portname;         // device filename (should be freed before structure freeing)
+    int baudrate;           // baudrate (B...)
+    struct termios oldtty;  // TTY flags for previous port settings
+    struct termios tty;     // TTY flags for current settings
+    int comfd;              // TTY file descriptor
+    char *buf;              // buffer for data read
+    int bufsz;              // size of buf
+    int buflen;             // length of data read into buf
+} TTY_descr;
+
+void close_tty(TTY_descr **descr);
+TTY_descr *tty_open(char *comdev, int speed, size_t bufsz);
+size_t read_tty(TTY_descr *descr);
+int write_tty(int comfd, const char *buff, size_t length);
 
 // convert string to double with checking
 int str2double(double *num, const char *str);
@@ -252,3 +273,15 @@ void check4running(char *selfname, char *pidfilename);
 // read name of process by its PID
 char *readPSname(pid_t pid);
 #endif // __USEFULL_MACROS_H__
+
+/******************************************************************************\
+                         The original fifo_lifo.h
+\******************************************************************************/
+typedef struct buff_node{
+    void *data;
+    struct buff_node *next, *last;
+} List;
+
+List *list_push_tail(List **lst, void *v);
+List *list_push(List **lst, void *v);
+void *list_pop(List **lst);

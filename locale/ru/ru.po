@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2018-12-07 02:52+0300\n"
+        "POT-Creation-Date: 2018-12-09 01:49+0300\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -30,32 +30,44 @@ msgstr  "\n"
 msgid   "%s: argument needed!"
 msgstr  "%s: необходим аргумент!"
 
+#. / Не могу сменить настройки порта
+#: /Big/Data/C_sources/snippets_library/term.c:123
+#, fuzzy
+msgid   "Can't apply new TTY settings"
+msgstr  "Не могу установить настройки"
+
 #. / Не могу закрыть mmap'нутый файл
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:218
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:254
 msgid   "Can't close mmap'ed file"
 msgstr  "Не могу закрыть mmap'нутый файл"
 
-#. / Не могу перевести порт в эксклюзивный режим
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:352
+#. / Не могу сделать порт эксклюзивным
+#: /Big/Data/C_sources/snippets_library/term.c:129
 msgid   "Can't do exclusive open"
 msgstr  "Не могу перевести порт в эксклюзивный режим"
 
 #. Get settings
-#. / Не могу получить настройки порта
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:345
-msgid   "Can't get port settings"
+#. / Не могу получить действующие настройки порта
+#: /Big/Data/C_sources/snippets_library/term.c:111
+#, fuzzy
+msgid   "Can't get old TTY settings"
 msgstr  "Не могу получить настройки порта"
 
 #. / Не могу munmap
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:232
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:268
 msgid   "Can't munmap"
 msgstr  "Не могу munmap"
 
 #. / Не могу открыть %s для чтения
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:201
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:237
 #, c-format
 msgid   "Can't open %s for reading"
 msgstr  "Не могу открыть %s для чтения"
+
+#. / Не могу открыть /dev/random
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:184
+msgid   "Can't open /dev/random"
+msgstr  ""
 
 #. / Не могу открыть PID файл
 #: /Big/Data/C_sources/snippets_library/daemon.c:143
@@ -63,31 +75,31 @@ msgid   "Can't open PID file"
 msgstr  "Не могу открыть PID файл"
 
 #. / Не могу открыть логфайл
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:462
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:382
 msgid   "Can't open log file"
 msgstr  "Не могу открыть логфайл"
 
-#. / Не могу открыть порт %s
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:340
-#, c-format
-msgid   "Can't open port %s"
-msgstr  "Не могу открыть порт %s"
-
-#. / Не могу установить настройки
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:365
-msgid   "Can't set settings"
-msgstr  "Не могу установить настройки"
+#. / Не могу прочесть /dev/random
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:189
+msgid   "Can't read /dev/random"
+msgstr  ""
 
 #. / Не могу настроить консоль
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:263
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:299
 msgid   "Can't setup console"
 msgstr  "Не могу настроить консоль"
 
 #. / Не могу выполнить stat %s
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:206
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:242
 #, c-format
 msgid   "Can't stat %s"
 msgstr  "Не могу выполнить stat %s"
+
+#. / Не могу использовать порт %s
+#: /Big/Data/C_sources/snippets_library/term.c:105
+#, fuzzy, c-format
+msgid   "Can't use port %s"
+msgstr  "Не могу открыть порт %s"
 
 #. / Целое вне допустимого диапазона
 #: /Big/Data/C_sources/snippets_library/parseargs.c:84
@@ -95,22 +107,27 @@ msgid   "Integer out of range"
 msgstr  "Целое вне допустимого диапазона"
 
 #. / Ошибка mmap
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:213
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:249
 msgid   "Mmap error for input"
 msgstr  "Ошибка mmap"
 
 #. / Не задано имя логфайла
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:454
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:374
 msgid   "Need filename for log file"
 msgstr  "Не задано имя логфайла"
 
 #. / Не задано имя файла!
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:196
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:232
 msgid   "No filename given!"
 msgstr  "Не задано имя файла!"
 
+#. / Отсутствует имя порта
+#: /Big/Data/C_sources/snippets_library/term.c:168
+msgid   "Port name is missing"
+msgstr  ""
+
 #. / Пробую открыть логфайл %s в режиме дополнения\n
-#: /Big/Data/C_sources/snippets_library/usefull_macros.c:458
+#: /Big/Data/C_sources/snippets_library/usefull_macros.c:378
 #, c-format
 msgid   "Try to open log file %s in append mode\n"
 msgstr  "Пробую открыть логфайл %s в режиме дополнения\n"
@@ -132,3 +149,8 @@ msgstr  "Неправильный формат строки помощи"
 #, c-format
 msgid   "Wrong parameter: %s"
 msgstr  "Неправильный параметр: %s"
+
+#: /Big/Data/C_sources/snippets_library/term.c:92
+#, c-format
+msgid   "Wrong speed value: %d!"
+msgstr  ""
