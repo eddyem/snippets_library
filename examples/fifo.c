@@ -18,6 +18,10 @@
 #include <usefull_macros.h>
 #include <stdio.h>
 
+/*
+ * Example of FIFO/LIFO usage
+ */
+
 int main(int argc, char *argv[argc]) {
     List *f = NULL;
     printf("Available memory: %luMB\n", get_available_mem()/1024/1024);

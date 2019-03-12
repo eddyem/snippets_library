@@ -1,0 +1,14 @@
+CMakeLists.txt
+daemon.c
+examples/CMakeLists.txt
+examples/cmdlnopts.c
+examples/cmdlnopts.h
+examples/fifo.c
+examples/helloworld.c
+examples/options.c
+fifo_lifo.c
+parseargs.c
+term.c
+term.h
+usefull_macros.c
+usefull_macros.h

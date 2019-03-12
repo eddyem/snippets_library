@@ -16,13 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "cmdlnopts.h"
 #include <signal.h>         // signal
-#include <stdlib.h>         // exit, free
 #include <stdio.h>          // printf
+#include <stdlib.h>         // exit, free
 #include <string.h>         // strdup
 #include <unistd.h>         // sleep
 #include <usefull_macros.h>
-#include "cmdlnopts.h"
+
+
+#include <termios.h>		// tcsetattr
+#include <unistd.h>			// tcsetattr, close, read, write
+#include <sys/ioctl.h>		// ioctl
+#include <stdio.h>			// printf, getchar, fopen, perror
+#include <stdlib.h>			// exit
+#include <sys/stat.h>		// read
+#include <fcntl.h>			// read
+#include <signal.h>			// signal
+#include <time.h>			// time
+#include <string.h>			// memcpy
+#include <stdint.h>			// int types
+#include <sys/time.h>		// gettimeofday
 
 /**
  * This is an example of usage:
@@ -34,8 +48,8 @@
  * The `cmdlnopts.[hc]` are intrinsic files of this demo.
  */
 
-TTY_descr *dev = NULL; // shoul be global to restore if die
-glob_pars *GP = NULL;  // for GP->pidfile need in `signals`
+static TTY_descr *dev = NULL; // shoul be global to restore if die
+static glob_pars *GP = NULL;  // for GP->pidfile need in `signals`
 
 /**
  * We REDEFINE the default WEAK function of signal processing
@@ -82,23 +96,31 @@ int main(int argc, char *argv[]){
     }
     if(GP->device){
         putlog("Try to open serial %s", GP->device);
-        dev = tty_open(GP->device, GP->speed, 256);
+        dev = new_tty(GP->device, GP->speed, 256);
+        if(dev) dev = tty_open(dev, GP->exclusive);
         if(!dev){
             putlog("Can't open %s with speed %d. Exit.", GP->device, GP->speed);
             signals(0);
         }
     }
+
     // main stuff goes here
     long seed = throw_random_seed();
     green("Now I will sleep for 10 seconds. Do whatever you want. Random seed: %ld\n", seed);
     double t0 = dtime();
+    char b[2] = {0};
     while(dtime() - t0 < 10.){ // read data from port and print in into terminal
         if(dev){
             if(read_tty(dev)){
-                printf("Data from port: %s\n", dev->buf);
+                printf("Got %zd bytes from port: %s\n", dev->buflen, dev->buf);
+                t0 = dtime();
             }
-            char ch = read_console();
-            if(ch) write_tty(dev->comfd, &ch, 1);
+            int r = read_console();
+            if(r < 1) continue;
+            t0 = dtime();
+            b[0] = (char) r;
+            printf("send to tty: %d (%c)\n", r, b[0]);
+            write_tty(dev->comfd, b, 1);
         }
     }
     // clean everything

@@ -20,8 +20,8 @@
  */
 
 #pragma once
-#ifndef __CMDLNOPTS_H__
-#define __CMDLNOPTS_H__
+#ifndef CMDLNOPTS_H__
+#define CMDLNOPTS_H__
 
 /*
  * here are some typedef's for global data
@@ -32,9 +32,11 @@ typedef struct{
     char *logfile;          // logging to this file
     int speed;              // connection speed
     int rest_pars_num;      // number of rest parameters
+    int exclusive;          // exclusive open port
     char** rest_pars;       // the rest parameters: array of char*
 } glob_pars;
 
 
 glob_pars *parse_args(int argc, char **argv);
-#endif // __CMDLNOPTS_H__
+
+#endif // CMDLNOPTS_H__

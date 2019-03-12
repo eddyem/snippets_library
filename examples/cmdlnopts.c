@@ -29,15 +29,15 @@
 /*
  * here are global parameters initialisation
  */
-int help;
-glob_pars  G;
+static int help;
+static glob_pars  G;
 
 // default PID filename:
 #define DEFAULT_PIDFILE "/tmp/testcmdlnopts.pid"
 
 //            DEFAULTS
 // default global parameters
-glob_pars const Gdefault = {
+static glob_pars const Gdefault = {
     .device = NULL,
     .pidfile = DEFAULT_PIDFILE,
     .speed = 9600,
@@ -48,13 +48,14 @@ glob_pars const Gdefault = {
  * Define command line options by filling structure:
  *  name        has_arg     flag    val     type        argptr              help
 */
-myoption cmdlnopts[] = {
+static myoption cmdlnopts[] = {
 // common options
     {"help",    NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
     {"device",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.device),    _("serial device name")},
     {"speed",   NEED_ARG,   NULL,   's',    arg_int,    APTR(&G.speed),     _("serial device speed (default: 9600)")},
     {"logfile", NEED_ARG,   NULL,   'l',    arg_string, APTR(&G.logfile),   _("file to save logs")},
     {"pidfile", NEED_ARG,   NULL,   'P',    arg_string, APTR(&G.pidfile),   _("pidfile (default: " DEFAULT_PIDFILE ")")},
+    {"exclusive",NO_ARGS,   NULL,   'e',    arg_int,    APTR(&G.exclusive), _("open serial device exclusively")},
    end_option
 };
 

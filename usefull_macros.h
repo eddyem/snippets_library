@@ -146,19 +146,23 @@ uint64_t get_available_mem();
 \******************************************************************************/
 typedef struct {
     char *portname;         // device filename (should be freed before structure freeing)
-    int baudrate;           // baudrate (B...)
+    int speed;              // baudrate in human-readable format
+    tcflag_t baudrate;      // baudrate (B...)
     struct termios oldtty;  // TTY flags for previous port settings
     struct termios tty;     // TTY flags for current settings
     int comfd;              // TTY file descriptor
     char *buf;              // buffer for data read
-    int bufsz;              // size of buf
-    int buflen;             // length of data read into buf
+    size_t bufsz;           // size of buf
+    size_t buflen;          // length of data read into buf
+    bool exclusive;         // should device be exclusive opened
 } TTY_descr;
 
 void close_tty(TTY_descr **descr);
-TTY_descr *tty_open(char *comdev, int speed, size_t bufsz);
+TTY_descr *new_tty(char *comdev, int speed, size_t bufsz);
+TTY_descr *tty_open(TTY_descr *d, int exclusive);
 size_t read_tty(TTY_descr *descr);
 int write_tty(int comfd, const char *buff, size_t length);
+tcflag_t conv_spd(int speed);
 
 // convert string to double with checking
 int str2double(double *num, const char *str);
