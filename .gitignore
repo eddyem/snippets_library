@@ -13,3 +13,6 @@
 # Shared objects
 *.so
 *.so.*
+
+# qt-creator
+Snippets.*

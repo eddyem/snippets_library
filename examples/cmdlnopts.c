@@ -51,6 +51,7 @@ static glob_pars const Gdefault = {
 static myoption cmdlnopts[] = {
 // common options
     {"help",    NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
+//    {"dup",		NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
     {"device",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.device),    _("serial device name")},
     {"speed",   NEED_ARG,   NULL,   's',    arg_int,    APTR(&G.speed),     _("serial device speed (default: 9600)")},
     {"logfile", NEED_ARG,   NULL,   'l',    arg_string, APTR(&G.logfile),   _("file to save logs")},

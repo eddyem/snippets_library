@@ -29,6 +29,7 @@
 #include <err.h>
 #include <locale.h>
 #include <stdlib.h>
+#include <sys/file.h> // flock
 #include <sys/time.h>
 #include <time.h>
 #include <sys/types.h>
@@ -44,6 +45,14 @@
  */
 void __attribute__ ((weak)) signals(int sig){
     exit(sig);
+}
+
+/**
+ * @brief sl_libversion - version
+ * @return return string with library version
+ */
+const char *sl_libversion(){
+    return PACKAGE_VERSION;
 }
 
 /**
@@ -366,7 +375,7 @@ int str2double(double *num, const char *str){
 
 /******************************************************************************\
  *                              Logging to file
- * BE CAREFULL!!! There's only one log file per process!
+ * DEPRECATED!!! DEPRECATED!!! DEPRECATED!!! DEPRECATED!!! DEPRECATED!!! DEPRECATED!!!
 \******************************************************************************/
 FILE *Flog = NULL; // log file descriptor
 char *logname = NULL;
@@ -422,3 +431,106 @@ int putlog(const char *fmt, ...){
     return i;
 }
 
+/******************************************************************************\
+ *                              Logging to file
+\******************************************************************************/
+sl_log *globlog = NULL; // "global" log file (the first opened logfile)
+/**
+ * @brief sl_createlog - create log file, test file open ability
+ * @param logpath - path to log file
+ * @param level   - lowest message level (e.g. LOGLEVEL_ERR won't allow to write warn/msg/dbg)
+ * @return allocated structure (should be free'd later by Cl_deletelog) or NULL
+ */
+sl_log *sl_createlog(const char *logpath, sl_loglevel level, int prefix){
+    if(level < LOGLEVEL_NONE || level > LOGLEVEL_ANY) return NULL;
+    if(!logpath) return NULL;
+    FILE *logfd = fopen(logpath, "a");
+    if(!logfd){
+        WARN("Can't open log file");
+        return NULL;
+    }
+    fclose(logfd);
+    sl_log *log = MALLOC(sl_log, 1);
+    log->logpath = strdup(logpath);
+    if(!log->logpath){
+        WARN("strdup()");
+        FREE(log);
+        return NULL;
+    }
+    log->loglevel = level;
+    log->addprefix = prefix;
+    return log;
+}
+
+void sl_deletelog(sl_log **log){
+    if(!log || !*log) return;
+    FREE((*log)->logpath);
+    FREE(*log);
+}
+
+/**
+ * @brief sl_putlog - put message to log file with/without timestamp
+ * @param timest - ==1 to put timestamp
+ * @param log - pointer to log structure
+ * @param lvl - message loglevel (if lvl > loglevel, message won't be printed)
+ * @param fmt - format and the rest part of message
+ * @return amount of symbols saved in file
+ */
+int sl_putlogt(int timest, sl_log *log, sl_loglevel lvl, const char *fmt, ...){
+    if(!log || !log->logpath) return 0;
+    if(lvl > log->loglevel) return 0;
+    int i = 0;
+    FILE *logfd = fopen(log->logpath, "a+");
+    if(!logfd) return 0;
+    int lfd = fileno(logfd);
+    // try to lock file
+    double t0 = dtime();
+    int locked = 0;
+    while(dtime() - t0 < 0.1){ // timeout for 0.1s
+        if(-1 == flock(lfd, LOCK_EX | LOCK_NB)) continue;
+        locked = 1;
+        break;
+    }
+    if(!locked) return 0; // can't lock
+    if(log->addprefix){
+        const char *p;
+        switch(lvl){
+            case LOGLEVEL_ERR:
+                p = "[ERR]";
+            break;
+            case LOGLEVEL_WARN:
+                p = "[WARN]";
+            break;
+            case LOGLEVEL_MSG:
+                p = "[MSG]";
+            break;
+            case LOGLEVEL_DBG:
+                p = "[DBG]";
+            break;
+            default:
+                p = NULL;
+        }
+        if(p) i += fprintf(logfd, "%s\t", p);
+    }
+    if(timest){
+        char strtm[128];
+        time_t t = time(NULL);
+        struct tm *curtm = localtime(&t);
+        strftime(strtm, 128, "%Y/%m/%d-%H:%M:%S", curtm);
+        i = fprintf(logfd, "%s", strtm);
+    }
+    i += fprintf(logfd, "\t");
+    va_list ar;
+    va_start(ar, fmt);
+    i += vfprintf(logfd, fmt, ar);
+    va_end(ar);
+    fseek(logfd, -1, SEEK_CUR);
+    char c;
+    ssize_t r = fread(&c, 1, 1, logfd);
+    if(1 == r){ // add '\n' if there was no newline
+        if(c != '\n') i += fprintf(logfd, "\n");
+    }
+    flock(lfd, LOCK_UN);
+    fclose(logfd);
+    return i;
+}

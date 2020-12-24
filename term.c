@@ -99,13 +99,12 @@ tcflag_t conv_spd(int speed){
  * @return 0 if all OK or error code
  */
 static int tty_init(TTY_descr *descr){
-    DBG("\nOpen port..."); // |O_NONBLOCK
+    // |O_NONBLOCK ?
     if ((descr->comfd = open(descr->portname, O_RDWR|O_NOCTTY)) < 0){
         /// Не могу использовать порт %s
         WARN(_("Can't use port %s"), descr->portname);
         return globErr ? globErr : 1;
     }
-    DBG("OK\nGet current settings...");
     if(tcgetattr(descr->comfd, &descr->oldtty) < 0){ // Get settings
         /// Не могу получить действующие настройки порта
         WARN(_("Can't get old TTY settings"));
@@ -128,7 +127,6 @@ static int tty_init(TTY_descr *descr){
         /// Не могу сделать порт эксклюзивным
         WARN(_("Can't do exclusive open"));
     }}
-    DBG("OK");
     return 0;
 }
 
@@ -139,14 +137,12 @@ void close_tty(TTY_descr **descr){
     if(descr == NULL || *descr == NULL) return;
     TTY_descr *d = *descr;
     if(d->comfd){
-        DBG("close file..");
         ioctl(d->comfd, TCSANOW, &d->oldtty); // return TTY to previous state
         close(d->comfd);
     }
     FREE(d->portname);
     FREE(d->buf);
     FREE(*descr);
-    DBG("done!\n");
 }
 
 /**
@@ -159,7 +155,6 @@ void close_tty(TTY_descr **descr){
 TTY_descr *new_tty(char *comdev, int speed, size_t bufsz){
     tcflag_t spd = conv_spd(speed);
     if(!spd) return NULL;
-    DBG("create %s with speed %d and buffer size %zd", comdev, speed, bufsz);
     TTY_descr *descr = MALLOC(TTY_descr, 1);
     descr->portname = strdup(comdev);
     descr->baudrate = spd;
@@ -171,7 +166,6 @@ TTY_descr *new_tty(char *comdev, int speed, size_t bufsz){
         if(bufsz){
             descr->buf = MALLOC(char, bufsz+1);
             descr->bufsz = bufsz;
-            DBG("allocate buffer with size %zd", bufsz);
             return descr;
         }else WARNX(_("Need non-zero buffer for TTY device"));
     }
@@ -187,7 +181,6 @@ TTY_descr *new_tty(char *comdev, int speed, size_t bufsz){
  * @return pointer to TTY structure if all OK
  */
 TTY_descr *tty_open(TTY_descr *d, int exclusive){
-    DBG("open %s with speed %d%s", d->portname, d->speed, exclusive ? "" : " (exclusive)");
     if(!d || !d->portname || !d->baudrate) return NULL;
     if(exclusive) d->exclusive = TRUE;
     else d->exclusive = FALSE;
@@ -195,14 +188,31 @@ TTY_descr *tty_open(TTY_descr *d, int exclusive){
     return d;
 }
 
+static struct timeval tvdefault = {.tv_sec = 0, .tv_usec = 5000};
+/**
+ * @brief tty_timeout - set timeout for select() on reading
+ * @param usec - microseconds of timeout
+ * @return -1 if usec < 0, 0 if all OK
+ */
+int tty_timeout(double usec){
+    if(usec < 0.) return -1;
+    tvdefault.tv_sec = 0;
+    if(usec > 999999){
+        tvdefault.tv_sec = (__time_t)(usec / 1e6);
+        usec -= tvdefault.tv_sec * 1e6;
+    }
+    tvdefault.tv_usec = (__suseconds_t) usec;
+    return 0;
+}
+
 /**
  * @brief read_tty - read data from TTY with 10ms timeout
  * @param buff (o) - buffer for data read
  * @param length   - buffer len
- * @return amount of bytes read
+ * @return amount of bytes read or -1 if disconnected
  */
-size_t read_tty(TTY_descr *d){
-    if(d->comfd < 0) return 0;
+int read_tty(TTY_descr *d){
+    if(!d || d->comfd < 0) return 0;
     size_t L = 0;
     ssize_t l;
     size_t length = d->bufsz;
@@ -214,31 +224,23 @@ size_t read_tty(TTY_descr *d){
         l = 0;
         FD_ZERO(&rfds);
         FD_SET(d->comfd, &rfds);
-        // wait for 10ms
-        tv.tv_sec = 0; tv.tv_usec = 50000;
+        //memcpy(&tv, &tvdefault, sizeof(struct timeval));
+        tv = tvdefault;
         retval = select(d->comfd + 1, &rfds, NULL, NULL, &tv);
-        if (!retval) break;
+        if(!retval) break;
+        if(retval < 0){
+            if(errno == EINTR) continue;
+            return -1;
+        }
         if(FD_ISSET(d->comfd, &rfds)){
-            if((l = read(d->comfd, ptr, length)) < 1){
-                break;
-            }
-#ifdef EBUG
-            char *s = ptr;
-#endif
+            l = read(d->comfd, ptr, length);
+            if(l < 1) return -1; // disconnected
             ptr += l; L += l;
-#ifdef EBUG
-            *ptr = 0;
-#endif
-            //DBG("got %zd bytes: %s\nBUF[%zd](%d): %s", l, s, L, d->bufsz, d->buf);
-            DBG("FD %d got %zd bytes: %s\nsym: %d, BUF[%zd](%zd): %s", d->comfd, l, s, (int)s[0], L, d->bufsz, d->buf);
             length -= l;
         }
     }while(l && length);
     d->buflen = L;
     d->buf[L] = 0;
-#ifdef EBUG
-    if(L) DBG("Got %zd bytes total: %s", d->buflen, d->buf);
-#endif
     return (size_t)L;
 }
 
@@ -249,7 +251,6 @@ size_t read_tty(TTY_descr *d){
  * @return 0 if all OK
  */
 int write_tty(int comfd, const char *buff, size_t length){
-    DBG("comfd: %d, buff: \"%s\", len: %zd", comfd, buff, length);
     ssize_t L = write(comfd, buff, length);
     if((size_t)L != length){
         /// "Ошибка записи!"

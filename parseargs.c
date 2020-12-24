@@ -148,7 +148,7 @@ void *get_aptr(void *paptr, argtype type){
         default:
         case arg_none:
             /// "Не могу использовать несколько параметров без аргументов!"
-            ERRX("Can't use multiple args with arg_none!");
+            ERRX(_("Can't use multiple args with arg_none!"));
         break;
         case arg_int:
             sz = sizeof(int);
@@ -206,18 +206,14 @@ void parseargs(int *argc, char ***argv, myoption *options){
     short_options = calloc(optsize * 3 + 1, 1); // multiply by three for '::' in case of args in opts
     long_options = calloc(optsize + 1, sizeof(struct option));
     opts = options; loptr = long_options; soptr = short_options;
-    // in debug mode check the parameters are not repeated
-#ifdef EBUG
+    // check the parameters are not repeated
     char **longlist = MALLOC(char*, optsize);
     char *shortlist = MALLOC(char, optsize);
-#endif
     // fill short/long parameters and make a simple checking
     for(i = 0; i < optsize; i++, loptr++, opts++){
         // check
         assert(opts->name); // check name
-#ifdef EBUG
         longlist[i] = strdup(opts->name);
-#endif
         if(opts->has_arg){
             assert(opts->type != arg_none); // check error with arg type
             assert(opts->argptr);  // check pointer
@@ -232,9 +228,7 @@ void parseargs(int *argc, char ***argv, myoption *options){
         loptr->val      = opts->val;
         // fill short options if they are:
         if(!opts->flag && opts->val){
-#ifdef EBUG
             shortlist[i] = (char) opts->val;
-#endif
             *soptr++ = opts->val;
             if(loptr->has_arg) // add ':' if option has required argument
                 *soptr++ = ':';
@@ -243,7 +237,6 @@ void parseargs(int *argc, char ***argv, myoption *options){
         }
     }
     // sort all lists & check for repeating
-#ifdef EBUG
     int cmpstringp(const void *p1, const void *p2){
         return strcmp(* (char * const *) p1, * (char * const *) p2);
     }
@@ -256,18 +249,17 @@ void parseargs(int *argc, char ***argv, myoption *options){
     for(i = 1; i < optsize; ++i){
         if(longlist[i]){
             if(prevl){
-                if(strcmp(prevl, longlist[i]) == 0) ERRX("double long arguments: --%s", prevl);
+                if(strcmp(prevl, longlist[i]) == 0) ERRX(_("double long arguments: --%s"), prevl);
             }
             prevl = longlist[i];
         }
         if(shortlist[i]){
             if(prevshrt){
-                if(prevshrt == shortlist[i]) ERRX("double short arguments: -%c", prevshrt);
+                if(prevshrt == shortlist[i]) ERRX(_("double short arguments: -%c"), prevshrt);
             }
             prevshrt = shortlist[i];
         }
     }
-#endif
     // now we have both long_options & short_options and can parse `getopt_long`
     while(1){
         int opt;
@@ -480,7 +472,7 @@ bool get_suboption(char *str, mysuboption *opt){
         }
         if(noarg && opt[idx].has_arg == NEED_ARG){
             /// %s: необходим аргумент!
-            WARNX(_("%s: argument needed!"), tok);
+            WARNX(_("%s: need argument!"), tok);
             goto returning;
         }
         if(!opt_setarg(opt, idx, val)){

@@ -59,11 +59,11 @@ void signals(int sig){
         signal(sig, SIG_IGN);
         DBG("Get signal %d, quit.\n", sig);
     }
-    putlog("Exit with status %d", sig);
-    if(GP->pidfile) // remove unnesessary PID file
+    LOGERR("Exit with status %d", sig);
+    if(GP && GP->pidfile) // remove unnesessary PID file
         unlink(GP->pidfile);
     restore_console();
-    close_tty(&dev);
+    if(dev) close_tty(&dev);
     exit(sig);
 }
 
@@ -81,38 +81,42 @@ int main(int argc, char *argv[]){
             printf("%s\n", GP->rest_pars[i]);
     }
     check4running(self, GP->pidfile);
+    red("%s started, snippets library version is %s\n", self, sl_libversion());
     free(self);
+    setup_con();
     signal(SIGTERM, signals); // kill (-15) - quit
     signal(SIGHUP, SIG_IGN);  // hup - ignore
     signal(SIGINT, signals);  // ctrl+C - quit
     signal(SIGQUIT, signals); // ctrl+\ - quit
     signal(SIGTSTP, SIG_IGN); // ignore ctrl+Z
-    if(GP->logfile) openlogfile(GP->logfile);
-    setup_con();
-    putlog(("Start application..."));
+    if(GP->logfile) OPENLOG(GP->logfile, LOGLEVEL_ANY, 1);
+    LOGMSG("Start application...");
     if(GP->rest_pars_num){
         for(int i = 0; i < GP->rest_pars_num; ++i)
             printf("Extra argument: %s\n", GP->rest_pars[i]);
     }
     if(GP->device){
-        putlog("Try to open serial %s", GP->device);
-        dev = new_tty(GP->device, GP->speed, 256);
+        LOGDBG("Try to open serial %s", GP->device);
+        dev = new_tty(GP->device, GP->speed, 4096);
         if(dev) dev = tty_open(dev, GP->exclusive);
         if(!dev){
-            putlog("Can't open %s with speed %d. Exit.", GP->device, GP->speed);
+            LOGERR("Can't open %s with speed %d. Exit.", GP->device, GP->speed);
             signals(0);
         }
     }
 
     // main stuff goes here
     long seed = throw_random_seed();
-    green("Now I will sleep for 10 seconds. Do whatever you want. Random seed: %ld\n", seed);
+    green("Now I will sleep for 10 seconds after your last input.\n Do whatever you want. Random seed: %ld\n", seed);
+    LOGWARN("warning message example");
+    LOGWARNADD("with next string without timestamp");
     double t0 = dtime();
     char b[2] = {0};
     while(dtime() - t0 < 10.){ // read data from port and print in into terminal
         if(dev){
             if(read_tty(dev)){
                 printf("Got %zd bytes from port: %s\n", dev->buflen, dev->buf);
+                LOGMSG("Got from serial: %s", dev->buf);
                 t0 = dtime();
             }
             int r = read_console();
@@ -120,10 +124,12 @@ int main(int argc, char *argv[]){
             t0 = dtime();
             b[0] = (char) r;
             printf("send to tty: %d (%c)\n", r, b[0]);
+            LOGMSG("send to tty: %d (%c)\n", r, b[0]);
             write_tty(dev->comfd, b, 1);
         }
     }
     // clean everything
     signals(0);
+    // never reached
     return 0;
 }

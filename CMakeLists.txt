@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.9)
 set(PROJ usefull_macros)
 set(MINOR_VERSION "1")
-set(MID_VERSION "0")
+set(MID_VERSION "1")
 set(MAJOR_VERSION "0")
-set(PROJ_VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")
+set(VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")
 
-project(${PROJ} VERSION ${PROJ_VERSION} LANGUAGES C)
+project(${PROJ} VERSION ${VERSION} LANGUAGES C)
 
 # default flags
 set(CMAKE_C_FLAGS "${CFLAGS} -O2")
@@ -95,7 +95,7 @@ include_directories(${${PROJ}_INCLUDE_DIRS})
 link_directories(${${PROJ}_LIBRARY_DIRS})
 # -D
 add_definitions(-DLOCALEDIR=\"${LOCALEDIR}\"
-        -DPACKAGE_VERSION=\"${PROJ_VERSION}\" -DGETTEXT_PACKAGE=\"${PROJ}\"
+        -DPACKAGE_VERSION=\"${VERSION}\" -DGETTEXT_PACKAGE=\"${PROJ}\"
         -DMINOR_VERSION=\"${MINOR_VERSION}\" -DMID_VERSION=\"${MID_VERSION}\"
         -DMAJOR_VERSION=\"${MAJOR_VESION}\")
 
@@ -105,7 +105,7 @@ target_link_libraries(${PROJ} ${${PROJ}_LIBRARIES})
 set(PCFILE "${CMAKE_BINARY_DIR}/${PROJ}.pc")
 configure_file("${PROJ}.pc.in" ${PCFILE} @ONLY)
 
-set_target_properties(${PROJ} PROPERTIES VERSION ${PROJ_VERSION})
+set_target_properties(${PROJ} PROPERTIES VERSION ${VERSION})
 set_target_properties(${PROJ} PROPERTIES PUBLIC_HEADER ${LIBHEADER})
 
 # Installation of the program

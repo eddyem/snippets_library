@@ -1,0 +1,7 @@
+Wed Dec 23 17:22:39 MSK 2020
+
+VERSION 0.1.1:
+add tty_timeout()
+fix read_tty() for disconnect
+add logging
+add sl_libversion()

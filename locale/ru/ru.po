@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2019-03-12 09:53+0300\n"
+        "POT-Creation-Date: 2020-12-24 12:22+0300\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,34 +25,45 @@ msgstr  "\n"
         "Обнаружен одноименный процесс (pid=%d), выход.\n"
 
 #. / %s: необходим аргумент!
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:483
-#, c-format
-msgid   "%s: argument needed!"
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:475
+#, fuzzy, c-format
+msgid   "%s: need argument!"
 msgstr  "%s: необходим аргумент!"
 
+#. / Не могу сменить настройки порта
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:121
+msgid   "Can't apply new TTY settings"
+msgstr  "Не могу сменить настройки порта"
+
 #. / Не могу закрыть mmap'нутый файл
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:262
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:263
 msgid   "Can't close mmap'ed file"
 msgstr  "Не могу закрыть mmap'нутый файл"
 
 #. / Не могу сделать порт эксклюзивным
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:129
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:128
 msgid   "Can't do exclusive open"
 msgstr  "Не могу перевести порт в эксклюзивный режим"
 
+#. Get settings
+#. / Не могу получить действующие настройки порта
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:110
+msgid   "Can't get old TTY settings"
+msgstr  "Не могу получить действующие настройки порта"
+
 #. / Не могу munmap
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:276
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:277
 msgid   "Can't munmap"
 msgstr  "Не могу munmap"
 
 #. / Не могу открыть %s для чтения
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:245
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:246
 #, c-format
 msgid   "Can't open %s for reading"
 msgstr  "Не могу открыть %s для чтения"
 
 #. / Не могу открыть /dev/random
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:184
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:185
 msgid   "Can't open /dev/random"
 msgstr  "Не могу открыть /dev/random"
 
@@ -62,25 +73,42 @@ msgid   "Can't open PID file"
 msgstr  "Не могу открыть PID файл"
 
 #. / Не могу открыть логфайл
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:390
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:391
 msgid   "Can't open log file"
 msgstr  "Не могу открыть логфайл"
 
 #. / Не могу прочесть /dev/random
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:189
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:190
 msgid   "Can't read /dev/random"
 msgstr  "Не могу прочесть /dev/random"
 
+#. error reading self name
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:118
+#, fuzzy
+msgid   "Can't read self name"
+msgstr  "Не могу прочесть имя процесса"
+
 #. / Не могу настроить консоль
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:307
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:308
 msgid   "Can't setup console"
 msgstr  "Не могу настроить консоль"
 
 #. / Не могу выполнить stat %s
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:250
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:251
 #, c-format
 msgid   "Can't stat %s"
 msgstr  "Не могу выполнить stat %s"
+
+#. / "Не могу использовать несколько параметров без аргументов!"
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:151
+msgid   "Can't use multiple args with arg_none!"
+msgstr  "Массив параметров не может иметь тип arg_none!"
+
+#. / Не могу использовать порт %s
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:105
+#, fuzzy, c-format
+msgid   "Can't use port %s"
+msgstr  "Не могу использовать порт %s"
 
 #. / Целое вне допустимого диапазона
 #: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:84
@@ -88,38 +116,37 @@ msgid   "Integer out of range"
 msgstr  "Целое вне допустимого диапазона"
 
 #. / Ошибка mmap
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:257
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:258
 msgid   "Mmap error for input"
 msgstr  "Ошибка mmap"
 
 #. / Не задано имя логфайла
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:382
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:383
 msgid   "Need filename for log file"
 msgstr  "Не задано имя логфайла"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:176
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:170
 msgid   "Need non-zero buffer for TTY device"
-
 msgstr  "Для последовательного устройства требуется буфер ненулевого размера"
 
 #. / Не задано имя файла!
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:240
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:241
 msgid   "No filename given!"
 msgstr  "Не задано имя файла!"
 
 #. / Отсутствует имя порта
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:169
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term.c:164
 msgid   "Port name is missing"
 msgstr  "Отсутствует имя порта"
 
 #. / Пробую открыть логфайл %s в режиме дополнения\n
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:386
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:387
 #, c-format
 msgid   "Try to open log file %s in append mode\n"
 msgstr  "Пробую открыть логфайл %s в режиме дополнения\n"
 
 #. / Неправильный аргумент \"%s\" параметра \"%s\"
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:488
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:480
 #, c-format
 msgid   "Wrong argument \"%s\" of parameter \"%s\""
 msgstr  "Неправильный аргумент \"%s\" параметра \"%s\""
@@ -131,7 +158,7 @@ msgid   "Wrong helpstring!"
 msgstr  "Неправильный формат строки помощи"
 
 #. / Неправильный параметр: %s
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:478
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:470
 #, c-format
 msgid   "Wrong parameter: %s"
 msgstr  "Неправильный параметр: %s"
@@ -140,3 +167,13 @@ msgstr  "Неправильный параметр: %s"
 #, c-format
 msgid   "Wrong speed value: %d!"
 msgstr  "Неправильное значение скорости: %d!"
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:252
+#, c-format
+msgid   "double long arguments: --%s"
+msgstr  "дублирующийся длинный параметр: --%s"
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:258
+#, c-format
+msgid   "double short arguments: -%c"
+msgstr  "дублирующийся короткий параметр: -%c"

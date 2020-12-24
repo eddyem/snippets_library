@@ -92,13 +92,13 @@ void check4running(char *selfname, char *pidfilename){
     if(selfname){ // block self
         fself = fopen(selfname, "r"); // open self binary to lock
         if(!fself){
-            WARN("fopen");
+            WARN("fopen()");
             goto selfpid;
         }
         memset(&fl, 0, sizeof(struct flock));
         fl.l_type = F_WRLCK;
         if(fcntl(fileno(fself), F_GETLK, &fl) == -1){ // check locking
-            WARN("fcntl");
+            WARN("fcntl()");
             goto selfpid;
         }
         if(fl.l_type != F_UNLCK){ // file is locking - exit
@@ -106,7 +106,7 @@ void check4running(char *selfname, char *pidfilename){
         }
         fl.l_type = F_RDLCK;
         if(fcntl(fileno(fself), F_SETLKW, &fl) == -1){
-            WARN("fcntl");
+            WARN("fcntl()");
         }
     }
     selfpid:
@@ -115,7 +115,7 @@ void check4running(char *selfname, char *pidfilename){
         ERR(PROC_BASE);
     }
     if(!(name = readPSname(self))){ // error reading self name
-        ERR("Can't read self name");
+        ERR(_("Can't read self name"));
     }
     myname = strdup(name);
     if(pidfilename && stat(pidfilename, &s_buf) == 0){ // pidfile exists

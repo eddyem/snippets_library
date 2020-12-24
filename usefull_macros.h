@@ -111,6 +111,9 @@ void WEAK signals(int sig);
 #define DBL_EPSILON        (2.2204460492503131e-16)
 #endif
 
+// library version
+const char *sl_libversion();
+
 // double value of UNIX time
 double dtime();
 
@@ -160,16 +163,52 @@ typedef struct {
 void close_tty(TTY_descr **descr);
 TTY_descr *new_tty(char *comdev, int speed, size_t bufsz);
 TTY_descr *tty_open(TTY_descr *d, int exclusive);
-size_t read_tty(TTY_descr *descr);
+int read_tty(TTY_descr *descr);
+int tty_timeout(double usec);
 int write_tty(int comfd, const char *buff, size_t length);
 tcflag_t conv_spd(int speed);
 
 // convert string to double with checking
 int str2double(double *num, const char *str);
 
-// logging
-void openlogfile(char *name);
-int putlog(const char *fmt, ...);
+// logging (deprecated)
+void __attribute__ ((deprecated)) openlogfile(char *name);
+int __attribute__ ((deprecated)) putlog(const char *fmt, ...);
+
+/******************************************************************************\
+                                 Logging
+\******************************************************************************/
+typedef enum{
+    LOGLEVEL_NONE,  // no logs
+    LOGLEVEL_ERR,   // only errors
+    LOGLEVEL_WARN,  // only warnings and errors
+    LOGLEVEL_MSG,   // all without debug
+    LOGLEVEL_DBG,   // all messages
+    LOGLEVEL_ANY    // all shit
+} sl_loglevel;
+
+typedef struct{
+    char *logpath;          // full path to logfile
+    sl_loglevel loglevel;   // loglevel
+    int addprefix;          // if !=0 add record type to each line(e.g. [ERR])
+} sl_log;
+
+extern sl_log *globlog; // "global" log file
+
+sl_log *sl_createlog(const char *logpath, sl_loglevel level, int prefix);
+void sl_deletelog(sl_log **log);
+int sl_putlogt(int timest, sl_log *log, sl_loglevel lvl, const char *fmt, ...);
+// open "global" log
+#define OPENLOG(nm, lvl, prefix)   (globlog = sl_createlog(nm, lvl, prefix))
+// shortcuts for different log levels; ..ADD - add message without timestamp
+#define LOGERR(...)     do{sl_putlogt(1, globlog, LOGLEVEL_ERR, __VA_ARGS__);}while(0)
+#define LOGERRADD(...)  do{sl_putlogt(0, globlog, LOGLEVEL_ERR, __VA_ARGS__);}while(0)
+#define LOGWARN(...)    do{sl_putlogt(1, globlog, LOGLEVEL_WARN, __VA_ARGS__);}while(0)
+#define LOGWARNADD(...) do{sl_putlogt(0, globlog, LOGLEVEL_WARN, __VA_ARGS__);}while(0)
+#define LOGMSG(...)     do{sl_putlogt(1, globlog, LOGLEVEL_MSG, __VA_ARGS__);}while(0)
+#define LOGMSGADD(...)  do{sl_putlogt(0, globlog, LOGLEVEL_MSG, __VA_ARGS__);}while(0)
+#define LOGDBG(...)     do{sl_putlogt(1, globlog, LOGLEVEL_DBG, __VA_ARGS__);}while(0)
+#define LOGDBGADD(...)  do{sl_putlogt(0, globlog, LOGLEVEL_DBG, __VA_ARGS__);}while(0)
 
 /******************************************************************************\
                          The original parseargs.h
@@ -276,7 +315,6 @@ void WEAK iffound_default(pid_t pid);
 void check4running(char *selfname, char *pidfilename);
 // read name of process by its PID
 char *readPSname(pid_t pid);
-#endif // __USEFULL_MACROS_H__
 
 /******************************************************************************\
                          The original fifo_lifo.h
@@ -289,3 +327,7 @@ typedef struct buff_node{
 List *list_push_tail(List **lst, void *v);
 List *list_push(List **lst, void *v);
 void *list_pop(List **lst);
+
+
+
+#endif // __USEFULL_MACROS_H__
