@@ -298,6 +298,10 @@ extern const char *__progname;
 
 void showhelp(int oindex, myoption *options);
 void parseargs(int *argc, char ***argv, myoption *options);
+/**
+ * @brief change_helpstring - change standard help header
+ * @param str (i) - new format (MAY consist ONE "%s" for progname)
+ */
 void change_helpstring(char *s);
 bool get_suboption(char *str, mysuboption *opt);
 

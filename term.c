@@ -112,6 +112,7 @@ static int tty_init(TTY_descr *descr){
     }
     descr->tty = descr->oldtty;
     descr->tty.c_lflag     = 0; // ~(ICANON | ECHO | ECHOE | ISIG)
+    descr->tty.c_iflag     = 0;
     descr->tty.c_oflag     = 0;
     descr->tty.c_cflag     = descr->baudrate|CS8|CREAD|CLOCAL; // 9.6k, 8N1, RW, ignore line ctrl
     descr->tty.c_cc[VMIN]  = 0;  // non-canonical mode
