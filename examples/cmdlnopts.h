@@ -31,8 +31,14 @@ typedef struct{
     char *pidfile;          // name of PID file
     char *logfile;          // logging to this file
     int speed;              // connection speed
-    int rest_pars_num;      // number of rest parameters
     int exclusive;          // exclusive open port
+    int **intarr;           // integer multopt
+    double **dblarr;        // double -//-
+    char **strarr;          // char -//-
+    int lo0;                // only long options
+    int lo1;
+    int lo2;
+    int rest_pars_num;      // number of rest parameters
     char** rest_pars;       // the rest parameters: array of char*
 } glob_pars;
 

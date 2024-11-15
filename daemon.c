@@ -31,13 +31,13 @@
 #include "usefull_macros.h"
 
 /**
- * @brief readPSname - read process name from /proc/PID/cmdline
+ * @brief sl_getPSname - read process name from /proc/PID/cmdline
  * @param pid - PID of interesting process
  * @return filename or NULL if not found
  *      don't use this function twice for different names without copying
  *      its returning by strdup, because `name` contains in static array
  */
-char *readPSname(pid_t pid){
+char *sl_getPSname(pid_t pid){
     static char name[PATH_MAX];
     char *pp = name, byte, path[PATH_MAX];
     FILE *file;
@@ -61,11 +61,11 @@ char *readPSname(pid_t pid){
 }
 
 /**
- * @brief iffound_default - default action when running process found
+ * @brief sl_iffound_deflt - default action when running process found
  * @param pid - another process' pid
  *      Redefine this function for user action
  */
-void WEAK iffound_default(pid_t pid){
+void WEAK sl_iffound_deflt(pid_t pid){
     /// \nОбнаружен одноименный процесс (pid=%d), выход.\n
     fprintf(stderr, _("\nFound running process (pid=%d), exit.\n"), pid);
     exit(-1);
@@ -81,7 +81,7 @@ void WEAK iffound_default(pid_t pid){
  * @param selfname - argv[0] or NULL for non-locking
  * @param pidfilename - name of pidfile or NULL if none
  */
-void check4running(char *selfname, char *pidfilename){
+void sl_check4running(char *selfname, char *pidfilename){
     DIR *dir;
     FILE *pidfile, *fself;
     struct dirent *de;
@@ -102,7 +102,7 @@ void check4running(char *selfname, char *pidfilename){
             goto selfpid;
         }
         if(fl.l_type != F_UNLCK){ // file is locking - exit
-            iffound_default(fl.l_pid);
+            sl_iffound_deflt(fl.l_pid);
         }
         fl.l_type = F_RDLCK;
         if(fcntl(fileno(fself), F_SETLKW, &fl) == -1){
@@ -114,7 +114,7 @@ void check4running(char *selfname, char *pidfilename){
     if(!(dir = opendir(PROC_BASE))){ // open /proc directory
         ERR(PROC_BASE);
     }
-    if(!(name = readPSname(self))){ // error reading self name
+    if(!(name = sl_getPSname(self))){ // error reading self name
         ERR(_("Can't read self name"));
     }
     myname = strdup(name);
@@ -122,8 +122,8 @@ void check4running(char *selfname, char *pidfilename){
         pidfile = fopen(pidfilename, "r");
         if(pidfile){
             if(fscanf(pidfile, "%d", &pid) > 0){ // read PID of (possibly) running process
-                if((name = readPSname(pid)) && strncmp(name, myname, 255) == 0)
-                    iffound_default(pid);
+                if((name = sl_getPSname(pid)) && strncmp(name, myname, 255) == 0)
+                    sl_iffound_deflt(pid);
             }
             fclose(pidfile);
         }
@@ -132,8 +132,8 @@ void check4running(char *selfname, char *pidfilename){
     while((de = readdir(dir))){ // scan /proc
         if(!(pid = (pid_t)atoi(de->d_name)) || pid == self) // pass non-PID files and self
             continue;
-        if((name = readPSname(pid)) && strncmp(name, myname, 255) == 0)
-            iffound_default(pid);
+        if((name = sl_getPSname(pid)) && strncmp(name, myname, 255) == 0)
+            sl_iffound_deflt(pid);
     }
     closedir(dir);
     free(myname);

@@ -23,8 +23,8 @@
  */
 
 int main(int argc, char *argv[argc]) {
-    List *f = NULL;
-    printf("Available memory: %luMB\n", get_available_mem()/1024/1024);
+    sl_list_t *f = NULL;
+    printf("Available memory: %luMB\n", sl_mem_avail()/1024/1024);
     //initial_setup(); - there's no need for this function if you don't use locale & don't want to have
     // specific output in non-tty
     if(argc == 1){
@@ -33,26 +33,26 @@ int main(int argc, char *argv[argc]) {
     }
     red("\n\nLIFO example\n");
     for(int i = 1; i < argc; ++i){
-        if(!list_push(&f, argv[i])) ERR("Allocation error!");
+        if(!sl_list_push(&f, argv[i])) ERR("Allocation error!");
         green("push to list ");
         printf("%s\n", argv[i]);
     }
     char *d;
     printf("\n");
     while(f){
-        d = list_pop(&f);
+        d = sl_list_pop(&f);
         green("pull: ");
         printf("%s\n", d);
     }
     red("\n\nFIFO example\n");
     for(int i = 1; i < argc; ++i){
-        if(!list_push_tail(&f, argv[i])) ERR("Allocation error!");
+        if(!sl_list_push_tail(&f, argv[i])) ERR("Allocation error!");
         green("push to list ");
         printf("%s\n", argv[i]);
     }
     printf("\n");
     while(f){
-        d = list_pop(&f);
+        d = sl_list_pop(&f);
         green("pull: ");
         printf("%s\n", d);
         // after last usage we should FREE data, but here it is parameter of main()

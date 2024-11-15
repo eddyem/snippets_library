@@ -38,6 +38,9 @@ static glob_pars  G;
 //            DEFAULTS
 // default global parameters
 static glob_pars const Gdefault = {
+    .lo0 = INT_MIN,
+    .lo1 = INT_MIN,
+    .lo2 = INT_MIN,
     .device = NULL,
     .pidfile = DEFAULT_PIDFILE,
     .speed = 9600,
@@ -48,16 +51,22 @@ static glob_pars const Gdefault = {
  * Define command line options by filling structure:
  *  name        has_arg     flag    val     type        argptr              help
 */
-static myoption cmdlnopts[] = {
-// common options
+static sl_option_t cmdlnopts[] = {
+    {"lo0",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo0),       _("only long arg 0")},
     {"help",    NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
 //    {"dup",		NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
     {"device",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.device),    _("serial device name")},
+    {"lo2",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo2),       _("only long arg 2")},
     {"speed",   NEED_ARG,   NULL,   's',    arg_int,    APTR(&G.speed),     _("serial device speed (default: 9600)")},
     {"logfile", NEED_ARG,   NULL,   'l',    arg_string, APTR(&G.logfile),   _("file to save logs")},
     {"pidfile", NEED_ARG,   NULL,   'P',    arg_string, APTR(&G.pidfile),   _("pidfile (default: " DEFAULT_PIDFILE ")")},
     {"exclusive",NO_ARGS,   NULL,   'e',    arg_int,    APTR(&G.exclusive), _("open serial device exclusively")},
-   end_option
+    // example of multiple options
+    {"Int",     MULT_PAR,   NULL,   'I',    arg_int,    APTR(&G.intarr),    _("integer multiplying parameter")},
+    {"Dbl",     MULT_PAR,   NULL,   'D',    arg_double, APTR(&G.dblarr),    _("double multiplying parameter")},
+    {"Str",     MULT_PAR,   NULL,   'S',    arg_string, APTR(&G.strarr),    _("string multiplying parameter")},
+    {"lo1",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo1),       _("only long arg 1")},
+    end_option
 };
 
 /**
@@ -75,10 +84,10 @@ glob_pars *parse_args(int argc, char **argv){
     char helpstring[1024], *hptr = helpstring;
     snprintf(hptr, hlen, "Usage: %%s [args]\n\n\tWhere args are:\n");
     // format of help: "Usage: progname [args]\n"
-    change_helpstring(helpstring);
+    sl_helpstring(helpstring);
     // parse arguments
-    parseargs(&argc, &argv, cmdlnopts);
-    if(help) showhelp(-1, cmdlnopts);
+    sl_parseargs(&argc, &argv, cmdlnopts);
+    if(help) sl_showhelp(-1, cmdlnopts);
     if(argc > 0){
         G.rest_pars_num = argc;
         G.rest_pars = MALLOC(char *, argc);

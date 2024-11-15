@@ -23,13 +23,13 @@
  */
 
 int main(){
-    initial_setup();
+    sl_init();
     // setup non-echo non-canonical mode
-    setup_con();
+    sl_setup_con();
     green("Press any key...\n");
-    char k = mygetchar();
+    char k = sl_getchar();
     red("You press %c\n", k);
     // don't forget to restore @exit!
-    restore_console();
+    sl_restore_con();
     return 0;
 }

@@ -20,14 +20,17 @@
  */
 
 #pragma once
-#ifndef __USEFULL_MACROS_H__
-#define __USEFULL_MACROS_H__
 
-#include <stdbool.h>        // bool
-#include <unistd.h>         // pid_t
-#include <errno.h>          // errno
+#ifdef SL_USE_OLD_TTY
 #include <termios.h>        // termios
+#else
+#include <asm-generic/termbits.h>
+#endif
+
+#include <errno.h>          // errno
 #include <stdlib.h>         // alloc, free
+#include <sys/types.h>      // pid_t
+#include <unistd.h>         // pid_t
 // just for different purposes
 #include <limits.h>
 #include <stdint.h>
@@ -103,8 +106,8 @@ void WEAK signals(int sig);
 /*
  * Memory allocation
  */
-#define ALLOC(type, var, size)  type * var = ((type *)my_alloc(size, sizeof(type)))
-#define MALLOC(type, size) ((type *)my_alloc(size, sizeof(type)))
+#define ALLOC(type, var, size)  type * var = ((type *)sl_alloc(size, sizeof(type)))
+#define MALLOC(type, size) ((type *)sl_alloc(size, sizeof(type)))
 #define FREE(ptr)  do{if(ptr){free(ptr); ptr = NULL;}}while(0)
 
 #ifndef DBL_EPSILON
@@ -115,38 +118,48 @@ void WEAK signals(int sig);
 const char *sl_libversion();
 
 // double value of UNIX time
-double dtime();
+double sl_dtime();
 
 // functions for color output in tty & no-color in pipes
 extern int (*red)(const char *fmt, ...);
 extern int (*_WARN)(const char *fmt, ...);
 extern int (*green)(const char *fmt, ...);
 // safe allocation
-void * my_alloc(size_t N, size_t S);
+void *sl_alloc(size_t N, size_t S);
 // setup locales & other
-void initial_setup();
+void sl_init();
 
 // mmap file
 typedef struct{
     char *data;
     size_t len;
-} mmapbuf;
-mmapbuf *My_mmap(char *filename);
-void My_munmap(mmapbuf *b);
+} sl_mmapbuf_t;
+sl_mmapbuf_t *sl_mmap(char *filename);
+void sl_munmap(sl_mmapbuf_t *b);
 
 // console in non-echo mode
-void restore_console();
-void setup_con();
-int read_console();
-int mygetchar();
+void sl_restore_con();
+void sl_setup_con();
+int sl_read_con();
+int sl_getchar();
 
-long throw_random_seed();
+long sl_random_seed();
 
-uint64_t get_available_mem();
+uint64_t sl_mem_avail();
+
+// omit leading spaces
+char *sl_omitspaces(const char *str);
+// omit trailing spaces
+char *sl_omitspacesr(const char *v);
+
+// convert string to double with checking
+int sl_str2d(double *num, const char *str);
+int sl_str2ll(long long *num, const char *str);
 
 /******************************************************************************\
                          The original term.h
 \******************************************************************************/
+#ifdef SL_USE_OLD_TTY
 typedef struct {
     char *portname;         // device filename (should be freed before structure freeing)
     int speed;              // baudrate in human-readable format
@@ -157,23 +170,31 @@ typedef struct {
     char *buf;              // buffer for data read
     size_t bufsz;           // size of buf
     size_t buflen;          // length of data read into buf
-    bool exclusive;         // should device be exclusive opened
-} TTY_descr;
+    int exclusive;          // should device be exclusive opened
+} sl_tty_t;
 
-void close_tty(TTY_descr **descr);
-TTY_descr *new_tty(char *comdev, int speed, size_t bufsz);
-TTY_descr *tty_open(TTY_descr *d, int exclusive);
-int read_tty(TTY_descr *descr);
-int tty_timeout(double usec);
-int write_tty(int comfd, const char *buff, size_t length);
-tcflag_t conv_spd(int speed);
+tcflag_t sl_tty_convspd(int speed);
+#else
+typedef struct {
+    char *portname;         // device filename (should be freed before structure freeing)
+    int speed;              // baudrate in human-readable format
+    char *format;           // format like 8N1
+    struct termios2 oldtty; // TTY flags for previous port settings
+    struct termios2 tty;    // TTY flags for current settings
+    int comfd;              // TTY file descriptor
+    char *buf;              // buffer for data read
+    size_t bufsz;           // size of buf
+    size_t buflen;          // length of data read into buf
+    int exclusive;          // should device be exclusive opened
+} sl_tty_t;
+#endif
 
-// convert string to double with checking
-int str2double(double *num, const char *str);
-
-// logging (deprecated)
-void __attribute__ ((deprecated)) openlogfile(char *name);
-int __attribute__ ((deprecated)) putlog(const char *fmt, ...);
+void sl_tty_close(sl_tty_t **descr);
+sl_tty_t *sl_tty_new(char *comdev, int speed, size_t bufsz);
+sl_tty_t *sl_tty_open(sl_tty_t *d, int exclusive);
+int sl_tty_read(sl_tty_t *descr);
+int sl_tty_tmout(double usec);
+int sl_tty_write(int comfd, const char *buff, size_t length);
 
 /******************************************************************************\
                                  Logging
@@ -184,31 +205,32 @@ typedef enum{
     LOGLEVEL_WARN,  // only warnings and errors
     LOGLEVEL_MSG,   // all without debug
     LOGLEVEL_DBG,   // all messages
-    LOGLEVEL_ANY    // all shit
-} sl_loglevel;
+    LOGLEVEL_ANY,   // all shit
+    LOGLEVEL_AMOUNT // total amount
+} sl_loglevel_e;
 
 typedef struct{
     char *logpath;          // full path to logfile
-    sl_loglevel loglevel;   // loglevel
+    sl_loglevel_e loglevel; // loglevel
     int addprefix;          // if !=0 add record type to each line(e.g. [ERR])
-} sl_log;
+} sl_log_t;
 
-extern sl_log *globlog; // "global" log file
+extern sl_log_t *sl_globlog; // "global" log file
 
-sl_log *sl_createlog(const char *logpath, sl_loglevel level, int prefix);
-void sl_deletelog(sl_log **log);
-int sl_putlogt(int timest, sl_log *log, sl_loglevel lvl, const char *fmt, ...);
+sl_log_t *sl_createlog(const char *logpath, sl_loglevel_e level, int prefix);
+void sl_deletelog(sl_log_t **log);
+int sl_putlogt(int timest, sl_log_t *log, sl_loglevel_e lvl, const char *fmt, ...);
 // open "global" log
-#define OPENLOG(nm, lvl, prefix)   (globlog = sl_createlog(nm, lvl, prefix))
+#define OPENLOG(nm, lvl, prefix)   (sl_globlog = sl_createlog(nm, lvl, prefix))
 // shortcuts for different log levels; ..ADD - add message without timestamp
-#define LOGERR(...)     do{sl_putlogt(1, globlog, LOGLEVEL_ERR, __VA_ARGS__);}while(0)
-#define LOGERRADD(...)  do{sl_putlogt(0, globlog, LOGLEVEL_ERR, __VA_ARGS__);}while(0)
-#define LOGWARN(...)    do{sl_putlogt(1, globlog, LOGLEVEL_WARN, __VA_ARGS__);}while(0)
-#define LOGWARNADD(...) do{sl_putlogt(0, globlog, LOGLEVEL_WARN, __VA_ARGS__);}while(0)
-#define LOGMSG(...)     do{sl_putlogt(1, globlog, LOGLEVEL_MSG, __VA_ARGS__);}while(0)
-#define LOGMSGADD(...)  do{sl_putlogt(0, globlog, LOGLEVEL_MSG, __VA_ARGS__);}while(0)
-#define LOGDBG(...)     do{sl_putlogt(1, globlog, LOGLEVEL_DBG, __VA_ARGS__);}while(0)
-#define LOGDBGADD(...)  do{sl_putlogt(0, globlog, LOGLEVEL_DBG, __VA_ARGS__);}while(0)
+#define LOGERR(...)     do{sl_putlogt(1, sl_globlog, LOGLEVEL_ERR, __VA_ARGS__);}while(0)
+#define LOGERRADD(...)  do{sl_putlogt(0, sl_globlog, LOGLEVEL_ERR, __VA_ARGS__);}while(0)
+#define LOGWARN(...)    do{sl_putlogt(1, sl_globlog, LOGLEVEL_WARN, __VA_ARGS__);}while(0)
+#define LOGWARNADD(...) do{sl_putlogt(0, sl_globlog, LOGLEVEL_WARN, __VA_ARGS__);}while(0)
+#define LOGMSG(...)     do{sl_putlogt(1, sl_globlog, LOGLEVEL_MSG, __VA_ARGS__);}while(0)
+#define LOGMSGADD(...)  do{sl_putlogt(0, sl_globlog, LOGLEVEL_MSG, __VA_ARGS__);}while(0)
+#define LOGDBG(...)     do{sl_putlogt(1, sl_globlog, LOGLEVEL_DBG, __VA_ARGS__);}while(0)
+#define LOGDBGADD(...)  do{sl_putlogt(0, sl_globlog, LOGLEVEL_DBG, __VA_ARGS__);}while(0)
 
 /******************************************************************************\
                          The original parseargs.h
@@ -217,7 +239,7 @@ int sl_putlogt(int timest, sl_log *log, sl_loglevel lvl, const char *fmt, ...);
 #define APTR(x)   ((void*)x)
 
 // if argptr is a function:
-typedef  bool(*argfn)(void *arg);
+typedef  int(*sl_argfn_t)(void *arg);
 
 /**
  * type of getopt's argument
@@ -238,8 +260,8 @@ typedef enum {
     arg_double,     // double
     arg_float,      // float
     arg_string,     // char *
-    arg_function    // parse_args will run function `bool (*fn)(char *optarg, int N)`
-} argtype;
+    arg_function    // parse_args will run function `int (*fn)(char *optarg, int N)`
+} sl_argtype_e;
 
 /**
  * Structure for getopt_long & help
@@ -265,30 +287,30 @@ typedef enum{
     NEED_ARG = 1,
     OPT_ARG  = 2,
     MULT_PAR
-} hasarg;
+} sl_hasarg_e;
 
 typedef struct{
     // these are from struct option:
     const char *name;       // long option's name
-    hasarg      has_arg;    // 0 - no args, 1 - nesessary arg, 2 - optionally arg, 4 - need arg & key can repeat (args are stored in null-terminated array)
+    sl_hasarg_e has_arg;    // 0 - no args, 1 - nesessary arg, 2 - optionally arg, 3 - need arg & key can repeat (args are stored in null-terminated array)
     int        *flag;       // NULL to return val, pointer to int - to set its value of val (function returns 0)
     int         val;        // short opt name (if flag == NULL) or flag's value
     // and these are mine:
-    argtype     type;       // type of argument
-    void       *argptr;     // pointer to variable to assign optarg value or function `bool (*fn)(char *optarg, int N)`
+    sl_argtype_e type;      // type of argument
+    void       *argptr;     // pointer to variable to assign optarg value or function `int (*fn)(char *optarg, int N)`
     const char *help;       // help string which would be shown in function `showhelp` or NULL
-} myoption;
+} sl_option_t;
 
 /*
- * Suboptions structure, almost the same like myoption
+ * Suboptions structure, almost the same like sl_option_t
  * used in parse_subopts()
  */
 typedef struct{
-    const char *name;
-    hasarg      has_arg;
-    argtype     type;
-    void       *argptr;
-} mysuboption;
+    const char  *name;
+    sl_hasarg_e  has_arg;
+    sl_argtype_e type;
+    void        *argptr;
+} sl_suboption_t;
 
 // last string of array (all zeros)
 #define end_option {0,0,0,0,0,0,0}
@@ -296,14 +318,14 @@ typedef struct{
 
 extern const char *__progname;
 
-void showhelp(int oindex, myoption *options);
-void parseargs(int *argc, char ***argv, myoption *options);
+void sl_showhelp(int oindex, sl_option_t *options);
+void sl_parseargs(int *argc, char ***argv, sl_option_t *options);
 /**
- * @brief change_helpstring - change standard help header
+ * @brief sl_helpstring - change standard help header
  * @param str (i) - new format (MAY consist ONE "%s" for progname)
  */
-void change_helpstring(char *s);
-bool get_suboption(char *str, mysuboption *opt);
+void sl_helpstring(char *s);
+int sl_get_suboption(char *str, sl_suboption_t *opt);
 
 
 /******************************************************************************\
@@ -314,24 +336,44 @@ bool get_suboption(char *str, mysuboption *opt);
 #endif
 
 // default function to run if another process found
-void WEAK iffound_default(pid_t pid);
+void WEAK sl_iffound_deflt(pid_t pid);
 // check that our process is exclusive
-void check4running(char *selfname, char *pidfilename);
+void sl_check4running(char *selfname, char *pidfilename);
 // read name of process by its PID
-char *readPSname(pid_t pid);
+char *sl_getPSname(pid_t pid);
 
 /******************************************************************************\
                          The original fifo_lifo.h
 \******************************************************************************/
-typedef struct buff_node{
+typedef struct sl_buff_node{
     void *data;
-    struct buff_node *next, *last;
-} List;
+    struct sl_buff_node *next, *last;
+} sl_list_t;
 
-List *list_push_tail(List **lst, void *v);
-List *list_push(List **lst, void *v);
-void *list_pop(List **lst);
+sl_list_t *sl_list_push_tail(sl_list_t **lst, void *v);
+sl_list_t *sl_list_push(sl_list_t **lst, void *v);
+void *sl_list_pop(sl_list_t **lst);
 
+/******************************************************************************\
+                         The original config.h
+\******************************************************************************/
 
+// max length of key (including '\0')
+#define SL_KEY_LEN      (32)
+// max length of value (including '\0')
+#define SL_VAL_LEN      (128)
 
-#endif // __USEFULL_MACROS_H__
+// starting symbol of any comment
+#define SL_COMMENT_CHAR '#'
+
+// option or simple configuration value (don't work for functions)
+typedef struct{
+    union{
+        int ival; long long llval; double dval; float fval;
+    };
+    sl_argtype_e type;
+} sl_optval;
+
+int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]);
+char *sl_print_opts(sl_option_t *opt, int showall);
+int sl_conf_readopts(const char *filename, sl_option_t *options);

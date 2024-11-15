@@ -33,10 +33,10 @@
 char *helpstring = "%s\n";
 
 /**
- * @brief change_helpstring - change standard help header
+ * @brief sl_helpstring - change standard help header
  * @param str (i) - new format (MAY consist ONE "%s" for progname)
  */
-void change_helpstring(char *s){
+void sl_helpstring(char *s){
     int pcount = 0, scount = 0;
     char *str = s;
     // check `helpstring` and set it to default in case of error
@@ -63,7 +63,7 @@ void change_helpstring(char *s){
  * @param t   (i) - T_INT for integer or T_LLONG for long long (if argtype would be wided, may add more)
  * @return TRUE if conversion done without errors, FALSE otherwise
  */
-static bool myatoll(void *num, char *str, argtype t){
+static int myatoll(void *num, char *str, sl_argtype_e t){
     long long tmp, *llptr;
     int *iptr;
     char *endptr;
@@ -92,7 +92,7 @@ static bool myatoll(void *num, char *str, argtype t){
 
 // the same as myatoll but for double
 // There's no NAN & INF checking here (what if they would be needed?)
-static bool myatod(void *num, const char *str, argtype t){
+static int myatod(void *num, const char *str, sl_argtype_e t){
     double tmp, *dptr;
     float *fptr;
     char *endptr;
@@ -114,21 +114,39 @@ static bool myatod(void *num, const char *str, argtype t){
     return TRUE;
 }
 
+
 /**
  * @brief get_optind  - get index of current option in array options
  * @param opt (i)     - returning val of getopt_long
  * @param options (i) - array of options
  * @return index in array
  */
-static int get_optind(int opt, myoption *options){
+static int get_optind(int opt, sl_option_t *options){
     int oind;
-    myoption *opts = options;
+    sl_option_t *opts = options;
     assert(opts);
-    for(oind = 0; opts->name && opts->val != opt; oind++, opts++);
+    for(oind = 0; opts->name && opts->val != opt; oind++, opts++){
+        DBG("cmp %c and %c", opt, opts->val);
+    }
     if(!opts->name || opts->val != opt) // no such parameter
-    showhelp(-1, options);
+        sl_showhelp(-1, options);
     return oind;
 }
+#if 0
+static int get_optindl(struct option *opt, sl_option_t *options){
+    int oind;
+    sl_option_t *opts = options;
+    assert(opts);
+    for(oind = 0; opts->name; ){
+        DBG("cmp '%s' and '%s'", opt->name, opts->name);
+        if(0 == strcmp(opt->name, opts->name)) break;
+        oind++, opts++;
+    }
+    if(!opts->name || strcmp(opt->name, opts->name)) // no such parameter
+        sl_showhelp(-1, options);
+    return oind;
+}
+#endif
 
 /**
  * @brief get_aptr - reallocate new value in array of multiple repeating arguments
@@ -136,7 +154,7 @@ static int get_optind(int opt, myoption *options){
  * @arg type       - its type (for realloc)
  * @return pointer to new (next) value
  */
-void *get_aptr(void *paptr, argtype type){
+void *get_aptr(void *paptr, sl_argtype_e type){
     int i = 1;
     void **aptr = *((void***)paptr);
     if(aptr){ // there's something in array
@@ -181,7 +199,7 @@ void *get_aptr(void *paptr, argtype type){
 
 
 /**
- * @brief parseargs - parse command line arguments
+ * @brief sl_parseargs - parse command line arguments
  * ! If arg is string, then value will be strdup'ed!
  *
  * @param argc (io) - address of argc of main(), return value of argc stay after `getopt`
@@ -192,11 +210,11 @@ void *get_aptr(void *paptr, argtype type){
  *
  * @exit: in case of error this function show help & make `exit(-1)`
   */
-void parseargs(int *argc, char ***argv, myoption *options){
+void sl_parseargs(int *argc, char ***argv, sl_option_t *options){
     char *short_options, *soptr;
     struct option *long_options, *loptr;
     size_t optsize, i;
-    myoption *opts = options;
+    sl_option_t *opts = options;
     // check whether there is at least one options
     assert(opts);
     assert(opts[0].name);
@@ -263,31 +281,45 @@ void parseargs(int *argc, char ***argv, myoption *options){
     // now we have both long_options & short_options and can parse `getopt_long`
     while(1){
         int opt;
-        int oindex = 0, optind = 0; // oindex - number of option in argv, optind - number in options[]
-        if((opt = getopt_long(*argc, *argv, short_options, long_options, &oindex)) == -1) break;
-        if(opt == '?'){
-            opt = optopt;
-            optind = get_optind(opt, options);
+        int /*oindex = -1,*/ optind = -1; // oindex - number of option in long_options, optind - number in options[]
+        if((opt = getopt_long(*argc, *argv, short_options, long_options, &optind)) == -1) break;
+        DBG("%c(%d) = getopt_long(argc, argv, %s, long_options, &%d); optopt=%c(%d), errno=%d", opt, opt, short_options, optind, optopt, optopt, errno);
+        if(optind < 0 ) optind = get_optind(opt, options); // find short option -> need to know index of long
+        // be careful with "-?" flag: all wrong or ambiguous flags will be interpreted as this!
+        /*
+        if(opt == '?'){ // real '?', wrong option or no argument when need
+            opt = optopt; // original short opt or 0 for wrong or long
+            if(opt == 0){ // '?' or wrong long
+                // there's no way to understand difference between real '-?' and unknown long flag
+                DBG("'?' or unknown parameter");
+                sl_showhelp(-1, options);
+            }else optind = get_optind(opt, options);
+            DBG("optind = %d", optind);
             if(options[optind].has_arg == NEED_ARG || options[optind].has_arg == MULT_PAR)
-                showhelp(optind, options); // need argument
-        }
-        else{
-            if(opt == 0 || oindex > 0) optind = oindex;
+                sl_showhelp(optind, options); // need argument
+        }else{
+            // we should call functions get_optind / get_optindl for options where there's no long analog
+            if(opt < ' ') optind = get_optindl(&long_options[oindex], options);
             else optind = get_optind(opt, options);
         }
+        if(optind < 0) sl_showhelp(-1, options); // wrong argument
+        */
+        DBG("index=%d", optind);
         opts = &options[optind];
-    //    if(opt == 0 && opts->has_arg == NO_ARGS) continue; // only long option changing integer flag
+        DBG("Got option %s", opts->name);
+
         // now check option
         if(opts->has_arg == NEED_ARG || opts->has_arg == MULT_PAR)
-            if(!optarg) showhelp(optind, options); // need argument
+            if(!optarg) sl_showhelp(optind, options); // need argument
         void *aptr;
         if(opts->has_arg == MULT_PAR){
             aptr = get_aptr(opts->argptr, opts->type);
         }else
             aptr = opts->argptr;
-        bool result = TRUE;
+        int result = TRUE;
         // even if there is no argument, but argptr != NULL, think that optarg = "1"
         if(!optarg) optarg = "1";
+        const char *type = NULL;
         switch(opts->type){
             default:
             case arg_none:
@@ -295,25 +327,31 @@ void parseargs(int *argc, char ***argv, myoption *options){
             break;
             case arg_int:
                 result = myatoll(aptr, optarg, arg_int);
+                type = _("integer");
             break;
             case arg_longlong:
                 result = myatoll(aptr, optarg, arg_longlong);
+                type = _("long long");
             break;
             case arg_double:
                 result = myatod(aptr, optarg, arg_double);
+                type = _("double");
             break;
             case arg_float:
                 result = myatod(aptr, optarg, arg_float);
+                type = _("float");
             break;
             case arg_string:
-                result = (*((void**)aptr) = (void*)strdup(optarg));
+                result = (*((void**)aptr) = (void*)strdup(optarg)) != NULL;
+                type = _("string");
             break;
             case arg_function:
-                result = ((argfn)aptr)(optarg);
+                result = ((sl_argfn_t)aptr)(optarg);
             break;
         }
         if(!result){
-            showhelp(optind, options);
+            if(type) fprintf(stderr, _("Need argument with %s type\n"), type);
+            sl_showhelp(optind, options);
         }
     }
     *argc -= optind;
@@ -325,7 +363,7 @@ void parseargs(int *argc, char ***argv, myoption *options){
  * first - sort by short options; second - sort arguments without sort opts (by long options)
  */
 static int argsort(const void *a1, const void *a2){
-    const myoption *o1 = (myoption*)a1, *o2 = (myoption*)a2;
+    const sl_option_t *o1 = (sl_option_t*)a1, *o2 = (sl_option_t*)a2;
     const char *l1 = o1->name, *l2 = o2->name;
     int s1 = o1->val, s2 = o2->val;
     int *f1 = o1->flag, *f2 = o2->flag;
@@ -341,17 +379,17 @@ static int argsort(const void *a1, const void *a2){
 }
 
 /**
- * @brief showhelp - show help information based on myoption->help values
- * @param oindex (i)  - if non-negative, show only help by myoption[oindex].help
- * @param options (i) - array of `myoption`
+ * @brief sl_showhelp - show help information based on sl_option_t->help values
+ * @param oindex (i)  - if non-negative, show only help by sl_option_t[oindex].help
+ * @param options (i) - array of `sl_option_t`
  *
  * @exit:  run `exit(-1)` !!!
  */
-void showhelp(int oindex, myoption *options){
+void sl_showhelp(int oindex, sl_option_t *options){
     int max_opt_len = 0; // max len of options substring - for right indentation
     const int bufsz = 255;
     char buf[bufsz+1];
-    myoption *opts = options;
+    sl_option_t *opts = options;
     assert(opts);
     assert(opts[0].name); // check whether there is at least one options
     if(oindex > -1){ // print only one message
@@ -383,7 +421,7 @@ void showhelp(int oindex, myoption *options){
     if(N == 0) exit(-2);
     // Now print all help (sorted)
     opts = options;
-    qsort(opts, N, sizeof(myoption), argsort);
+    qsort(opts, N, sizeof(sl_option_t), argsort);
     do{
         int p = sprintf(buf, "  "); // a little indent
         if(!opts->flag && opts->val) // .val is short argument
@@ -402,13 +440,13 @@ void showhelp(int oindex, myoption *options){
 }
 
 /**
- * @brief get_suboption - get suboptions from parameter string
+ * @brief sl_get_suboption - get suboptions from parameter string
  * @param str - parameter string
  * @param opt - pointer to suboptions structure
  * @return TRUE if all OK
  */
-bool get_suboption(char *str, mysuboption *opt){
-    int findsubopt(char *par, mysuboption *so){
+int sl_get_suboption(char *str, sl_suboption_t *opt){
+    int findsubopt(char *par, sl_suboption_t *so){
         int idx = 0;
         if(!par) return -1;
         while(so[idx].name){
@@ -417,9 +455,9 @@ bool get_suboption(char *str, mysuboption *opt){
         }
         return -1; // badarg
     }
-    bool opt_setarg(mysuboption *so, int idx, char *val){
-        mysuboption *soptr = &so[idx];
-        bool result = FALSE;
+    int opt_setarg(sl_suboption_t *so, int idx, char *val){
+        sl_suboption_t *soptr = &so[idx];
+        int result = FALSE;
         void *aptr = soptr->argptr;
         switch(soptr->type){
             default:
@@ -440,16 +478,16 @@ bool get_suboption(char *str, mysuboption *opt){
                 result = myatod(aptr, val, arg_float);
             break;
             case arg_string:
-                result = (*((void**)aptr) = (void*)strdup(val));
+                result = (*((void**)aptr) = (void*)strdup(val)) != NULL;
             break;
             case arg_function:
-                result = ((argfn)aptr)(val);
+                result = ((sl_argfn_t)aptr)(val);
             break;
         }
         return result;
     }
     char *tok;
-    bool ret = FALSE;
+    int ret = FALSE;
     char *tmpbuf;
     tok = strtok_r(str, ":,", &tmpbuf);
     do{

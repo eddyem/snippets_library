@@ -5,3 +5,52 @@ add tty_timeout()
 fix read_tty() for disconnect
 add logging
 add sl_libversion()
+
+VERSION 0.2.1:
+RENAME:
+	initial_setup -> sl_init
+	dtime -> sl_dtime
+	my_alloc -> sl_alloc
+	mmapbuf -> sl_mmapuf_t
+	My_mmap -> sl_mmap
+	My_munmap -> sl_munmap
+	restore_console -> sl_restore_con
+	setup_con -> sl_setup_con
+	read_console -> sl_read_con
+	mygetchar -> sl_getchar
+	throw_random_seed -> sl_random_seed
+	get_available_mem -> sl_mem_avail
+	TTY_descr -> sl_tty_t
+	close_tty -> sl_tty_close
+	new_tty -> sl_tty_new
+	tty_open -> sl_tty_open
+	read_tty -> sl_tty_read
+	tty_timeout -> sl_tty_tmout
+	write_tty -> sl_tty_write
+	conv_spd -> sl_tty_convspd
+	str2double -> sl_str2d
+	globlog -> sl_globlog
+	sl_loglevel -> sl_loglevel_e
+	sl_log -> sl_log_t
+	argfn -> sl_argfn_t
+	argtype -> sl_argtype_e
+	hasarg -> sl_hasarg_e
+	myoption -> sl_option_t
+	mysuboption -> sl_suboption_t
+	showhelp -> sl_showhelp
+	parseargs -> sl_parseargs
+	change_helpstring -> sl_helpstring
+	get_suboption -> sl_get_suboption
+	iffound_default -> sl_iffound_deflt
+	check4running -> sl_check4running
+	readPSname -> sl_getPSname
+	struct buff_node -> struct sl_buff_node
+	List -> sl_list_t
+	list_push_tail -> sl_list_push_tail
+	list_push -> sl_list_push
+	list_pop -> sl_list_pop
+Remove deprecated code (openlogfile, putlog)
+Remove "bool" type (change to int)
+FIXED bug with several only long options with same shortopt mark (like 0)
+Add simple config files, so you can move some of your parameters settings to it
+

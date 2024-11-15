@@ -18,23 +18,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
  */
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdarg.h>
+
+#include <ctype.h> // isspace
 #include <err.h>
-#include <locale.h>
-#include <stdlib.h>
-#include <sys/file.h> // flock
-#include <sys/time.h>
-#include <time.h>
-#include <sys/types.h>
+#include <fcntl.h>
 #include <linux/limits.h> // PATH_MAX
+#include <locale.h>
 #include <math.h>         // floor
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/file.h> // flock
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "usefull_macros.h"
 
@@ -56,10 +58,10 @@ const char *sl_libversion(){
 }
 
 /**
- * @brief dtime - function for different purposes that need to know time intervals
+ * @brief sl_dtime - function for different purposes that need to know time intervals
  * @return double value: UNIX time in seconds
  */
-double dtime(){
+double sl_dtime(){
     double t;
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -77,7 +79,7 @@ int globErr = 0; // errno for WARN/ERR
  * @param fmt ... - printf-like format
  * @return number of printed symbols
  */
-int r_pr_(const char *fmt, ...){
+static int r_pr_(const char *fmt, ...){
     va_list ar; int i;
     printf(COLOR_RED);
     va_start(ar, fmt);
@@ -86,7 +88,7 @@ int r_pr_(const char *fmt, ...){
     printf(COLOR_OLD);
     return i;
 }
-int g_pr_(const char *fmt, ...){
+static int g_pr_(const char *fmt, ...){
     va_list ar; int i;
     printf(COLOR_GREEN);
     va_start(ar, fmt);
@@ -101,7 +103,7 @@ int g_pr_(const char *fmt, ...){
  * @param fmt ... - printf-like format
  * @return number of printed symbols
  */
-int r_WARN(const char *fmt, ...){
+static int r_WARN(const char *fmt, ...){
     va_list ar; int i = 1;
     fprintf(stderr, COLOR_RED);
     va_start(ar, fmt);
@@ -128,7 +130,7 @@ static const char stars[] = "****************************************";
  * @param fmt ... - printf-like format
  * @return number of printed symbols
  */
-int s_WARN(const char *fmt, ...){
+static int s_WARN(const char *fmt, ...){
     va_list ar; int i;
     i = fprintf(stderr, "\n%s\n", stars);
     va_start(ar, fmt);
@@ -143,7 +145,7 @@ int s_WARN(const char *fmt, ...){
     i += fprintf(stderr, "\n");
     return i;
 }
-int r_pr_notty(const char *fmt, ...){
+static int r_pr_notty(const char *fmt, ...){
     va_list ar; int i;
     i = printf("\n%s\n", stars);
     va_start(ar, fmt);
@@ -154,10 +156,10 @@ int r_pr_notty(const char *fmt, ...){
 }
 
 /**
- * @brief initial_setup - setup locale & console
+ * @brief sl_init - setup locale & console
  * Run this function in the beginning of main() to setup locale & coloured output
  */
-void initial_setup(){
+void sl_init(){
     // setup coloured output
     if(isatty(STDOUT_FILENO)){ // make color output in tty
         red = r_pr_; green = g_pr_;
@@ -180,10 +182,10 @@ void initial_setup(){
 \******************************************************************************/
 
 /**
-* @brief throw_random_seed - Generate a quasy-random number to initialize PRNG
+* @brief sl_random_seed - Generate a quasy-random number to initialize PRNG
 * @return value for srand48
 */
-long throw_random_seed(){
+long sl_random_seed(){
     long r_ini;
     int fail = 0;
     int fd = open("/dev/random", O_RDONLY);
@@ -201,7 +203,7 @@ long throw_random_seed(){
         close(fd);
     }while(0);
     if(fail){
-        double tt = dtime() * 1e6;
+        double tt = sl_dtime() * 1e6;
         double mx = (double)LONG_MAX;
         r_ini = (long)(tt - mx * floor(tt/mx));
     }
@@ -209,10 +211,10 @@ long throw_random_seed(){
 }
 
 /**
- * @brief get_available_mem
+ * @brief sl_mem_avail
  * @return system available physical memory
  */
-uint64_t get_available_mem(){
+uint64_t sl_mem_avail(){
     return sysconf(_SC_AVPHYS_PAGES) * (uint64_t) sysconf(_SC_PAGE_SIZE);
 }
 
@@ -222,12 +224,12 @@ uint64_t get_available_mem(){
  *                                  Memory
 \******************************************************************************/
 /**
- * @brief my_alloc - safe memory allocation for macro ALLOC
+ * @brief sl_alloc - safe memory allocation for macro ALLOC
  * @param N - number of elements to allocate
  * @param S - size of single element (typically sizeof)
  * @return pointer to allocated memory area
  */
-void *my_alloc(size_t N, size_t S){
+void *sl_alloc(size_t N, size_t S){
     void *p = calloc(N, S);
     if(!p) ERR("malloc");
     //assert(p);
@@ -235,11 +237,11 @@ void *my_alloc(size_t N, size_t S){
 }
 
 /**
- * @brief My_mmap - mmap file to a memory area
+ * @brief sl_mmap - mmap file to a memory area
  * @param filename (i) - name of file to mmap
  * @return stuct with mmap'ed file or die
  */
-mmapbuf *My_mmap(char *filename){
+sl_mmapbuf_t *sl_mmap(char *filename){
     int fd;
     char *ptr;
     size_t Mlen;
@@ -269,17 +271,17 @@ mmapbuf *My_mmap(char *filename){
     }
     /// Не могу закрыть mmap'нутый файл
     if(close(fd)) WARN(_("Can't close mmap'ed file"));
-    mmapbuf *ret = MALLOC(mmapbuf, 1);
+    sl_mmapbuf_t *ret = MALLOC(sl_mmapbuf_t, 1);
     ret->data = ptr;
     ret->len = Mlen;
     return  ret;
 }
 
 /**
- * @brief My_munmap - unmap memory file
+ * @brief sl_munmap - unmap memory file
  * @param b (i) - mmap'ed buffer
  */
-void My_munmap(mmapbuf *b){
+void sl_munmap(sl_mmapbuf_t *b){
     if(munmap(b->data, b->len)){
         /// Не могу munmap
         ERR(_("Can't munmap"));
@@ -287,44 +289,86 @@ void My_munmap(mmapbuf *b){
     FREE(b);
 }
 
+/**
+ * @brief sl_omitspaces - omit leading spaces
+ * @param v - source string
+ * @return pointer to first non-blank character (could be '\0' if end of string reached)
+ */
+char *sl_omitspaces(const char *v){
+    if(!v) return NULL;
+    char *p = (char*)v;
+    while(*p && isspace(*p)) ++p;
+    return p;
+}
+
+// the same as sl_omitspaces, but return (last non-space char + 1) in string or its first char
+char *sl_omitspacesr(const char *v){
+    if(!v) return NULL;
+    char *eol = (char*)v + strlen(v) - 1;
+    while(eol > v && isspace(*eol)) --eol;
+    if(eol == v && isspace(*eol)) return eol;
+    return eol + 1;
+}
+
 
 /******************************************************************************\
  *                          Terminal in no-echo mode
  * BE CAREFULL! These functions aren't thread-safe!
 \******************************************************************************/
-static struct termios oldt, newt; // console flags
+// console flags
+#ifndef SL_USE_OLD_TTY
+static struct termios2 oldt, newt;
+#else
+static struct termios oldt, newt;
+#endif
 static int console_changed = 0;
 /**
- * @brief restore_console - restore console to default mode
+ * @brief sl_restore_con - restore console to default mode
  */
-void restore_console(){
+void sl_restore_con(){
     if(console_changed)
+#ifndef SL_USE_OLD_TTY
+        ioctl(STDIN_FILENO, TCSETS2, &oldt);
+#else
         tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // return terminal to previous state
+#endif
     console_changed = 0;
 }
 
 /**
- * @brief setup_con - setup console to non-canonical noecho mode
+ * @brief sl_setup_con - setup console to non-canonical noecho mode
  */
-void setup_con(){
+void sl_setup_con(){
     if(console_changed) return;
+#ifndef SL_USE_OLD_TTY
+        ioctl(STDIN_FILENO, TCGETS2, &oldt);
+#else
     tcgetattr(STDIN_FILENO, &oldt);
+#endif
     newt = oldt;
     newt.c_lflag &= ~(ICANON | ECHO);
+#ifndef SL_USE_OLD_TTY
+        if(ioctl(STDIN_FILENO, TCSETS2, &newt)){
+#else
     if(tcsetattr(STDIN_FILENO, TCSANOW, &newt) < 0){
+#endif
         /// Не могу настроить консоль
         WARN(_("Can't setup console"));
+#ifndef SL_USE_OLD_TTY
+        ioctl(STDIN_FILENO, TCSETS2, &oldt);
+#else
         tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+#endif
         signals(1); //quit?
     }
     console_changed = 1;
 }
 
 /**
- * @brief read_console - read character from console without echo
+ * @brief sl_read_con - read character from console without echo
  * @return char read or zero
  */
-int read_console(){
+int sl_read_con(){
     int rb;
     struct timeval tv;
     int retval;
@@ -346,102 +390,58 @@ int read_console(){
  * wait until at least one character pressed
  * @return character read
  */
-int mygetchar(){
+int sl_getchar(){
     int ret;
-    do ret = read_console();
+    do ret = sl_read_con();
     while(ret == 0);
     return ret;
 }
 
 /**
- * @brief str2double - safely convert data from string to double
+ * @brief sl_str2d - safely convert data from string to double
  * @param num (o) - double number read from string
  * @param str (i) - input string
  * @return 1 if success, 0 if fails
  */
-int str2double(double *num, const char *str){
+int sl_str2d(double *num, const char *str){
     double res;
     char *endptr;
-    if(!str) return 0;
+    if(!str) return FALSE;
     res = strtod(str, &endptr);
     if(endptr == str || *str == '\0' || *endptr != '\0'){
-        /// "Неправильный формат числа double!"
-        WARNX("Wrong double number format!");
+        /// "Неправильный формат числа double '%s'"
+        WARNX(_("Wrong double number format '%s'"), str);
         return FALSE;
     }
     if(num) *num = res; // you may run it like myatod(NULL, str) to test wether str is double number
     return TRUE;
 }
-
-/******************************************************************************\
- *                              Logging to file
- * DEPRECATED!!! DEPRECATED!!! DEPRECATED!!! DEPRECATED!!! DEPRECATED!!! DEPRECATED!!!
-\******************************************************************************/
-FILE *Flog = NULL; // log file descriptor
-char *logname = NULL;
-time_t log_open_time = 0;
-/**
- * @brief openlogfile - try to open log file
- * @param name (i)    - log file name
- * if failed show warning message
- */
-void openlogfile(char *name){
-    if(!name){
-        /// Не задано имя логфайла
-        WARNX(_("Need filename for log file"));
-        return;
+// and so on
+int sl_str2ll(long long *num, const char *str){
+    long long res;
+    char *endptr;
+    if(!str) return FALSE;
+    res = strtoll(str, &endptr, 0);
+    if(endptr == str || *str == '\0' || *endptr != '\0'){
+        /// "Неправильный формат числа double!"
+        WARNX(_("Wrong number format!"));
+        return FALSE;
     }
-    /// Пробую открыть логфайл %s в режиме дополнения\n
-    green(_("Try to open log file %s in append mode\n"), name);
-    fflush(stdout);
-    if(!(Flog = fopen(name, "a"))){
-        /// Не могу открыть логфайл
-        WARN(_("Can't open log file"));
-        return;
-    }
-    log_open_time = time(NULL);
-    logname = name;
-}
-
-/**
- * Save message to log file, rotate logs every 24 hours
- */
-int putlog(const char *fmt, ...){
-    if(!Flog) return 0;
-    time_t t_now = time(NULL);
-    if(t_now - log_open_time > 86400){ // rotate log
-        fprintf(Flog, "\n\t\t%sRotate log\n", ctime(&t_now));
-        fclose(Flog);
-        char newname[PATH_MAX];
-        snprintf(newname, PATH_MAX, "%s.old", logname);
-        if(rename(logname, newname)) WARN("rename()");
-        openlogfile(logname);
-        if(!Flog) return 0;
-    }
-    //int i = fprintf(Flog, "%s\t\t", ctime(&t_now));
-    char buf[256];
-    strftime(buf, 255, "%Y/%m/%d %H:%M:%S", localtime(&t_now));
-    int i = fprintf(Flog, "%s\t\t", buf);
-    va_list ar;
-    va_start(ar, fmt);
-    i = vfprintf(Flog, fmt, ar);
-    va_end(ar);
-    fprintf(Flog, "\n");
-    fflush(Flog);
-    return i;
+    if(num) *num = res;
+    return TRUE;
 }
 
 /******************************************************************************\
  *                              Logging to file
 \******************************************************************************/
-sl_log *globlog = NULL; // "global" log file (the first opened logfile)
+sl_log_t *sl_globlog = NULL; // "global" log file (the first opened logfile)
 /**
  * @brief sl_createlog - create log file, test file open ability
  * @param logpath - path to log file
  * @param level   - lowest message level (e.g. LOGLEVEL_ERR won't allow to write warn/msg/dbg)
  * @return allocated structure (should be free'd later by Cl_deletelog) or NULL
  */
-sl_log *sl_createlog(const char *logpath, sl_loglevel level, int prefix){
+sl_log_t *sl_createlog(const char *logpath, sl_loglevel_e level, int prefix){
     if(level < LOGLEVEL_NONE || level > LOGLEVEL_ANY) return NULL;
     if(!logpath) return NULL;
     FILE *logfd = fopen(logpath, "a");
@@ -450,7 +450,7 @@ sl_log *sl_createlog(const char *logpath, sl_loglevel level, int prefix){
         return NULL;
     }
     fclose(logfd);
-    sl_log *log = MALLOC(sl_log, 1);
+    sl_log_t *log = MALLOC(sl_log_t, 1);
     log->logpath = strdup(logpath);
     if(!log->logpath){
         WARN("strdup()");
@@ -462,7 +462,7 @@ sl_log *sl_createlog(const char *logpath, sl_loglevel level, int prefix){
     return log;
 }
 
-void sl_deletelog(sl_log **log){
+void sl_deletelog(sl_log_t **log){
     if(!log || !*log) return;
     FREE((*log)->logpath);
     FREE(*log);
@@ -476,7 +476,7 @@ void sl_deletelog(sl_log **log){
  * @param fmt - format and the rest part of message
  * @return amount of symbols saved in file
  */
-int sl_putlogt(int timest, sl_log *log, sl_loglevel lvl, const char *fmt, ...){
+int sl_putlogt(int timest, sl_log_t *log, sl_loglevel_e lvl, const char *fmt, ...){
     if(!log || !log->logpath) return 0;
     if(lvl > log->loglevel) return 0;
     int i = 0;
@@ -484,9 +484,9 @@ int sl_putlogt(int timest, sl_log *log, sl_loglevel lvl, const char *fmt, ...){
     if(!logfd) return 0;
     int lfd = fileno(logfd);
     // try to lock file
-    double t0 = dtime();
+    double t0 = sl_dtime();
     int locked = 0;
-    while(dtime() - t0 < 0.1){ // timeout for 0.1s
+    while(sl_dtime() - t0 < 0.1){ // timeout for 0.1s
         if(-1 == flock(lfd, LOCK_EX | LOCK_NB)) continue;
         locked = 1;
         break;

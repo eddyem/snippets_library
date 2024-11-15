@@ -22,60 +22,60 @@
 #include "usefull_macros.h"
 
 /**
- * @brief list_push_tail - push data into the tail of a stack (like FIFO)
+ * @brief sl_list_push_tail - push data into the tail of a stack (like FIFO)
  * @param lst (io) - list
  * @param v (i)    - data to push
  * @return pointer to just pused node or NULL in case of error
  */
-List *list_push_tail(List **lst, void *v){
-	List *node;
-	if(!lst) return NULL;
-	if((node = MALLOC(List, 1)) == NULL)
-		return NULL; // allocation error
-	node->data = v; // insert data
-	if(!*lst){
-		*lst = node;
+sl_list_t *sl_list_push_tail(sl_list_t **lst, void *v){
+    sl_list_t *node;
+    if(!lst) return NULL;
+    if((node = MALLOC(sl_list_t, 1)) == NULL)
+        return NULL; // allocation error
+    node->data = v; // insert data
+    if(!*lst){
+        *lst = node;
     }else{
         (*lst)->last->next = node;
     }
-	(*lst)->last = node;
-	return node;
+    (*lst)->last = node;
+    return node;
 }
 
 /**
- * @brief list_push - push data into the head of a stack (like LIFO)
+ * @brief sl_list_push - push data into the head of a stack (like LIFO)
  * @param lst (io) - list
  * @param v (i)    - data to push
  * @return pointer to just pused node
  */
-List *list_push(List **lst, void *v){
-	List *node;
-	if(!lst) return NULL;
-	if((node = MALLOC(List, 1)) == NULL)
-		return NULL; // allocation error
-	node->data = v; // insert data
-	if(!*lst){
-		*lst = node;
-		(*lst)->last = node;
-		return node;
-	}
-	node->next = *lst;
-	node->last = (*lst)->last;
-	*lst = node;
-	return node;
+sl_list_t *sl_list_push(sl_list_t **lst, void *v){
+    sl_list_t *node;
+    if(!lst) return NULL;
+    if((node = MALLOC(sl_list_t, 1)) == NULL)
+        return NULL; // allocation error
+    node->data = v; // insert data
+    if(!*lst){
+        *lst = node;
+        (*lst)->last = node;
+        return node;
+    }
+    node->next = *lst;
+    node->last = (*lst)->last;
+    *lst = node;
+    return node;
 }
 
 /**
- * @brief list_pop - get data from head of list. Don't forget to FREE list data after `pop`
+ * @brief sl_list_pop - get data from head of list. Don't forget to FREE list data after `pop`
  * @param lst (io) - list
  * @return data from lst head
  */
-void *list_pop(List **lst){
-	void *ret;
-	List *node = *lst;
-	if(!lst || !*lst) return NULL;
-	ret = (*lst)->data;
-	*lst = (*lst)->next;
-	FREE(node);
-	return ret;
+void *sl_list_pop(sl_list_t **lst){
+    void *ret;
+    sl_list_t *node = *lst;
+    if(!lst || !*lst) return NULL;
+    ret = (*lst)->data;
+    *lst = (*lst)->next;
+    FREE(node);
+    return ret;
 }

@@ -1,6 +1,6 @@
 /*
  * This file is part of the Snippets project.
- * Copyright 2013 Edward V. Emelianov <edward.emelianoff@gmail.com>.
+ * Copyright 2024 Edward V. Emelianov <edward.emelianoff@gmail.com>.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,115 +17,122 @@
  */
 
 #include <unistd.h>         // tcsetattr, close, read, write
-#include <sys/ioctl.h>      // ioctl
+#include <fcntl.h>          // read
 #include <stdio.h>          // printf, getchar, fopen, perror
 #include <stdlib.h>         // exit, realloc
-#include <sys/stat.h>       // read
-#include <fcntl.h>          // read
-#include <signal.h>         // signal
-#include <time.h>           // time
 #include <string.h>         // memcpy
-#include <stdint.h>         // int types
+#include <sys/ioctl.h>      // ioctl
+#include <sys/stat.h>       // read
 #include <sys/time.h>       // gettimeofday
-#include <unistd.h>         // usleep
+#include <time.h>           // time
+#include <unistd.h>         // usleep, tcsetattr, close, read, write
 #include "usefull_macros.h"
 
 #define LOGBUFSZ (1024)
 
-typedef struct {
-    int speed;       // communication speed in bauds/s
-    tcflag_t bspeed; // baudrate from termios.h
-} spdtbl;
-
-static int tty_init(sl_tty_t *descr);
-
-static spdtbl speeds[] = {
-    {50, B50},
-    {75, B75},
-    {110, B110},
-    {134, B134},
-    {150, B150},
-    {200, B200},
-    {300, B300},
-    {600, B600},
-    {1200, B1200},
-    {1800, B1800},
-    {2400, B2400},
-    {4800, B4800},
-    {9600, B9600},
-    {19200, B19200},
-    {38400, B38400},
-    {57600, B57600},
-    {115200, B115200},
-    {230400, B230400},
-    {460800, B460800},
-    {500000, B500000},
-    {576000, B576000},
-    {921600, B921600},
-    {1000000, B1000000},
-    {1152000, B1152000},
-    {1500000, B1500000},
-    {2000000, B2000000},
-    {2500000, B2500000},
-    {3000000, B3000000},
-    {3500000, B3500000},
-    {4000000, B4000000},
-    {0,0}
-};
-
-/**
- * @brief sl_tty_convspd - test if `speed` is in .speed of `speeds` array
- * @param speed - integer speed (bps)
- * @return 0 if error, Bxxx if all OK
- */
-tcflag_t sl_tty_convspd(int speed){
-    spdtbl *spd = speeds;
-    int curspeed = 0;
-    do{
-        curspeed = spd->speed;
-        if(curspeed == speed)
-            return spd->bspeed;
-        ++spd;
-    }while(curspeed);
-    WARNX(_("Wrong speed value: %d!"), speed);
-    return 0;
+// return FALSE if failed
+static int parse_format(const char *iformat, tcflag_t *flags){
+    tcflag_t f = 0;
+    if(!iformat){ // default
+        if(flags) *flags = CS8;
+        return TRUE;
+    }
+    if(strlen(iformat) != 3) goto someerr;
+    switch(iformat[0]){
+        case '5':
+            f |= CS5;
+        break;
+        case '6':
+            f |= CS6;
+        break;
+        case '7':
+            f |= CS7;
+        break;
+        case '8':
+            f |= CS8;
+        break;
+        default:
+            goto someerr;
+    }
+    switch(iformat[1]){
+        case '0': // always 0
+            f |= PARENB | CMSPAR;
+        break;
+        case '1': // always 1
+            f |= PARENB | CMSPAR | PARODD;
+        break;
+        case 'E': // even
+            f |= PARENB;
+        break;
+        case 'N': // none
+        break;
+        case 'O': // odd
+            f |= PARENB | PARODD;
+        break;
+        default:
+            goto someerr;
+    }
+    switch(iformat[2]){
+        case '1':
+        break;
+        case '2':
+            f |= CSTOPB;
+        break;
+        default:
+            goto someerr;
+    }
+    if(flags) *flags = f;
+    return TRUE;
+someerr:
+    WARNX(_("Wrong USART format \"%s\"; use NPS, where N: 5..8; P: N/E/O/1/0, S: 1/2"), iformat);
+    return FALSE;
 }
 
 /**
  * @brief tty_init - open & setup terminal
  * @param descr (io) - port descriptor
- * @return 0 if all OK or error code
+ * !!! default settings are "8N1".
+ * !!! If you want other, set it like `descr->format = "7O2"` between `sl_tty_new` and `sl_tty_open`
+ * @return 0 if all OK, last error code or 1
  */
 static int tty_init(sl_tty_t *descr){
-    // |O_NONBLOCK ?
-    if ((descr->comfd = open(descr->portname, O_RDWR|O_NOCTTY)) < 0){
+    tcflag_t flags;
+    if(!parse_format(descr->format, &flags)) return 1;
+    if((descr->comfd = open(descr->portname, O_RDWR|O_NOCTTY)) < 0){
         /// Не могу использовать порт %s
         WARN(_("Can't use port %s"), descr->portname);
         return globErr ? globErr : 1;
     }
-    if(tcgetattr(descr->comfd, &descr->oldtty) < 0){ // Get settings
+    if(ioctl(descr->comfd, TCGETS2, &descr->oldtty)){ // Get settings
         /// Не могу получить действующие настройки порта
         WARN(_("Can't get old TTY settings"));
         return globErr ? globErr : 1;
     }
     descr->tty = descr->oldtty;
     descr->tty.c_lflag     = 0; // ~(ICANON | ECHO | ECHOE | ISIG)
-    descr->tty.c_iflag     = 0;
-    descr->tty.c_oflag     = 0;
-    descr->tty.c_cflag     = descr->baudrate|CS8|CREAD|CLOCAL; // 9.6k, 8N1, RW, ignore line ctrl
+    descr->tty.c_iflag     = 0; // don't do any changes in input stream
+    descr->tty.c_oflag     = 0; // don't do any changes in output stream
+    descr->tty.c_cflag     = BOTHER | flags | CREAD | CLOCAL; // other speed, user format, RW, ignore line ctrl
+    descr->tty.c_ispeed = descr->speed;
+    descr->tty.c_ospeed = descr->speed;
     descr->tty.c_cc[VMIN]  = 0;  // non-canonical mode
     descr->tty.c_cc[VTIME] = 5;
-    if(tcsetattr(descr->comfd, TCSANOW, &descr->tty) < 0){
+    if(ioctl(descr->comfd, TCSETS2, &descr->tty)){
         /// Не могу сменить настройки порта
         WARN(_("Can't apply new TTY settings"));
         return globErr ? globErr : 1;
     }
+    ioctl(descr->comfd, TCGETS2, &descr->tty);
+    if(descr->tty.c_ispeed != (speed_t)descr->speed || descr->tty.c_ospeed != (speed_t)descr->speed){
+        WARN(_("Can't set speed %d, got ispeed=%d, ospeed=%d"), descr->speed, descr->tty.c_ispeed, descr->tty.c_ospeed);
+        descr->speed = descr->tty.c_ispeed;
+    }
     // make exclusive open
     if(descr->exclusive){
-    if(ioctl(descr->comfd, TIOCEXCL)){
-        /// Не могу сделать порт эксклюзивным
-        WARN(_("Can't do exclusive open"));
-    }}
+        if(ioctl(descr->comfd, TIOCEXCL)){
+            /// Не могу сделать порт эксклюзивным
+            WARN(_("Can't do exclusive open"));
+        }}
     return 0;
 }
 
@@ -136,7 +143,7 @@ void sl_tty_close(sl_tty_t **descr){
     if(descr == NULL || *descr == NULL) return;
     sl_tty_t *d = *descr;
     if(d->comfd){
-        ioctl(d->comfd, TCSANOW, &d->oldtty); // return TTY to previous state
+        ioctl(d->comfd, TCSETS2, &d->oldtty); // return TTY to previous state
         close(d->comfd);
     }
     FREE(d->portname);
@@ -152,11 +159,8 @@ void sl_tty_close(sl_tty_t **descr){
  * @return pointer to TTY structure if all OK
  */
 sl_tty_t *sl_tty_new(char *comdev, int speed, size_t bufsz){
-    tcflag_t spd = sl_tty_convspd(speed);
-    if(!spd) return NULL;
     sl_tty_t *descr = MALLOC(sl_tty_t, 1);
     descr->portname = strdup(comdev);
-    descr->baudrate = spd;
     descr->speed = speed;
     if(!descr->portname){
         /// Отсутствует имя порта
@@ -180,7 +184,7 @@ sl_tty_t *sl_tty_new(char *comdev, int speed, size_t bufsz){
  * @return pointer to TTY structure if all OK
  */
 sl_tty_t *sl_tty_open(sl_tty_t *d, int exclusive){
-    if(!d || !d->portname || !d->baudrate) return NULL;
+    if(!d || !d->portname) return NULL;
     if(exclusive) d->exclusive = TRUE;
     else d->exclusive = FALSE;
     if(tty_init(d)) return NULL;

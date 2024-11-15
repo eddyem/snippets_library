@@ -2,3 +2,5 @@ cmake defines:
 -DDEBUG=1        - debug mode
 -DNOGETTEXT=1    - don't run xgettext
 -DEXAMPLES=1     - to compile examples
+-DSL_USE_OLD_TTY    - use old termios instead of termios2 (you should use this flag always if library works so)
+

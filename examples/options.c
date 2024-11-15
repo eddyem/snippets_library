@@ -24,20 +24,6 @@
 #include <unistd.h>         // sleep
 #include <usefull_macros.h>
 
-
-#include <termios.h>		// tcsetattr
-#include <unistd.h>			// tcsetattr, close, read, write
-#include <sys/ioctl.h>		// ioctl
-#include <stdio.h>			// printf, getchar, fopen, perror
-#include <stdlib.h>			// exit
-#include <sys/stat.h>		// read
-#include <fcntl.h>			// read
-#include <signal.h>			// signal
-#include <time.h>			// time
-#include <string.h>			// memcpy
-#include <stdint.h>			// int types
-#include <sys/time.h>		// gettimeofday
-
 /**
  * This is an example of usage:
  *  - command line arguments,
@@ -48,7 +34,7 @@
  * The `cmdlnopts.[hc]` are intrinsic files of this demo.
  */
 
-static TTY_descr *dev = NULL; // shoul be global to restore if die
+static sl_tty_t *dev = NULL; // shoul be global to restore if die
 static glob_pars *GP = NULL;  // for GP->pidfile need in `signals`
 
 /**
@@ -62,28 +48,26 @@ void signals(int sig){
     LOGERR("Exit with status %d", sig);
     if(GP && GP->pidfile) // remove unnesessary PID file
         unlink(GP->pidfile);
-    restore_console();
-    if(dev) close_tty(&dev);
+    sl_restore_con();
+    if(dev) sl_tty_close(&dev);
     exit(sig);
 }
 
-void iffound_default(pid_t pid){
+void sl_iffound_deflt(pid_t pid){
     ERRX("Another copy of this process found, pid=%d. Exit.", pid);
 }
 
 int main(int argc, char *argv[]){
-    initial_setup();
-    char *self = strdup(argv[0]);
+    sl_init();
     GP = parse_args(argc, argv);
     if(GP->rest_pars_num){
         printf("%d extra options:\n", GP->rest_pars_num);
         for(int i = 0; i < GP->rest_pars_num; ++i)
             printf("%s\n", GP->rest_pars[i]);
     }
-    check4running(self, GP->pidfile);
-    red("%s started, snippets library version is %s\n", self, sl_libversion());
-    free(self);
-    setup_con();
+    sl_check4running((char*)__progname, GP->pidfile);
+    red("%s started, snippets library version is %s\n", __progname, sl_libversion());
+    sl_setup_con();
     signal(SIGTERM, signals); // kill (-15) - quit
     signal(SIGHUP, SIG_IGN);  // hup - ignore
     signal(SIGINT, signals);  // ctrl+C - quit
@@ -95,10 +79,25 @@ int main(int argc, char *argv[]){
         for(int i = 0; i < GP->rest_pars_num; ++i)
             printf("Extra argument: %s\n", GP->rest_pars[i]);
     }
+    if(GP->intarr){
+        int **p = GP->intarr;
+        for(int i = 0; *p; ++i) printf("Integer[%d]: %d\n", i, **p++);
+    }
+    if(GP->dblarr){
+        double **p = GP->dblarr;
+        for(int i = 0; *p; ++i) printf("Double[%d]: %g\n", i, **p++);
+    }
+    if(GP->strarr){
+        char **p = GP->strarr;
+        for(int i = 0; *p; ++i) printf("String[%d]: \"%s\"\n", i, *p++);
+    }
+    if(GP->lo0 != INT_MIN) printf("You set lo0 to %d\n", GP->lo0);
+    if(GP->lo1 != INT_MIN) printf("You set lo1 to %d\n", GP->lo1);
+    if(GP->lo2 != INT_MIN) printf("You set lo2 to %d\n", GP->lo2);
     if(GP->device){
         LOGDBG("Try to open serial %s", GP->device);
-        dev = new_tty(GP->device, GP->speed, 4096);
-        if(dev) dev = tty_open(dev, GP->exclusive);
+        dev = sl_tty_new(GP->device, GP->speed, 4096);
+        if(dev) dev = sl_tty_open(dev, GP->exclusive);
         if(!dev){
             LOGERR("Can't open %s with speed %d. Exit.", GP->device, GP->speed);
             signals(0);
@@ -106,26 +105,26 @@ int main(int argc, char *argv[]){
     }
 
     // main stuff goes here
-    long seed = throw_random_seed();
+    long seed = sl_random_seed();
     green("Now I will sleep for 10 seconds after your last input.\n Do whatever you want. Random seed: %ld\n", seed);
     LOGWARN("warning message example");
     LOGWARNADD("with next string without timestamp");
-    double t0 = dtime();
+    double t0 = sl_dtime();
     char b[2] = {0};
-    while(dtime() - t0 < 10.){ // read data from port and print in into terminal
+    while(sl_dtime() - t0 < 10.){ // read data from port and print in into terminal
         if(dev){
-            if(read_tty(dev)){
+            if(sl_tty_read(dev)){
                 printf("Got %zd bytes from port: %s\n", dev->buflen, dev->buf);
                 LOGMSG("Got from serial: %s", dev->buf);
-                t0 = dtime();
+                t0 = sl_dtime();
             }
-            int r = read_console();
+            int r = sl_read_con();
             if(r < 1) continue;
-            t0 = dtime();
+            t0 = sl_dtime();
             b[0] = (char) r;
             printf("send to tty: %d (%c)\n", r, b[0]);
             LOGMSG("send to tty: %d (%c)\n", r, b[0]);
-            write_tty(dev->comfd, b, 1);
+            sl_tty_write(dev->comfd, b, 1);
         }
     }
     // clean everything
