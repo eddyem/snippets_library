@@ -99,12 +99,10 @@ tcflag_t sl_tty_convspd(int speed){
 static int tty_init(sl_tty_t *descr){
     // |O_NONBLOCK ?
     if ((descr->comfd = open(descr->portname, O_RDWR|O_NOCTTY)) < 0){
-        /// Не могу использовать порт %s
         WARN(_("Can't use port %s"), descr->portname);
         return globErr ? globErr : 1;
     }
     if(tcgetattr(descr->comfd, &descr->oldtty) < 0){ // Get settings
-        /// Не могу получить действующие настройки порта
         WARN(_("Can't get old TTY settings"));
         return globErr ? globErr : 1;
     }
@@ -116,14 +114,12 @@ static int tty_init(sl_tty_t *descr){
     descr->tty.c_cc[VMIN]  = 0;  // non-canonical mode
     descr->tty.c_cc[VTIME] = 5;
     if(tcsetattr(descr->comfd, TCSANOW, &descr->tty) < 0){
-        /// Не могу сменить настройки порта
         WARN(_("Can't apply new TTY settings"));
         return globErr ? globErr : 1;
     }
     // make exclusive open
     if(descr->exclusive){
     if(ioctl(descr->comfd, TIOCEXCL)){
-        /// Не могу сделать порт эксклюзивным
         WARN(_("Can't do exclusive open"));
     }}
     return 0;
@@ -159,7 +155,6 @@ sl_tty_t *sl_tty_new(char *comdev, int speed, size_t bufsz){
     descr->baudrate = spd;
     descr->speed = speed;
     if(!descr->portname){
-        /// Отсутствует имя порта
         WARNX(_("Port name is missing"));
     }else{
         if(bufsz){
@@ -252,7 +247,6 @@ int sl_tty_read(sl_tty_t *d){
 int sl_tty_write(int comfd, const char *buff, size_t length){
     ssize_t L = write(comfd, buff, length);
     if((size_t)L != length){
-        /// "Ошибка записи!"
         WARN("Write error");
         return 1;
     }

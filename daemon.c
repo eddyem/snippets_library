@@ -66,7 +66,6 @@ char *sl_getPSname(pid_t pid){
  *      Redefine this function for user action
  */
 void WEAK sl_iffound_deflt(pid_t pid){
-    /// \nОбнаружен одноименный процесс (pid=%d), выход.\n
     fprintf(stderr, _("\nFound running process (pid=%d), exit.\n"), pid);
     exit(-1);
 }
@@ -139,7 +138,6 @@ void sl_check4running(char *selfname, char *pidfilename){
     free(myname);
     if(pidfilename){
         pidfile = fopen(pidfilename, "w");
-        /// Не могу открыть PID файл
         if(!pidfile) ERR(_("Can't open PID file"));
         fprintf(pidfile, "%d\n", self); // write self PID to pidfile
         fclose(pidfile);

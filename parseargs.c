@@ -50,7 +50,6 @@ void sl_helpstring(char *s){
         if(str[1] == 's') scount++; // increment "%s" counter
     };
     if(pcount > 1 || pcount != scount){ // amount of pcount and/or scount wrong
-        /// Неправильный формат строки помощи
         ERRX(_("Wrong helpstring!"));
     }
     helpstring = s;
@@ -80,7 +79,6 @@ static int myatoll(void *num, char *str, sl_argtype_e t){
         case arg_int:
         default:
             if(tmp < INT_MIN || tmp > INT_MAX){
-                /// Целое вне допустимого диапазона
                 WARNX(_("Integer out of range"));
                 return FALSE;
             }
@@ -165,7 +163,6 @@ void *get_aptr(void *paptr, sl_argtype_e type){
     switch(type){
         default:
         case arg_none:
-            /// "Не могу использовать несколько параметров без аргументов!"
             ERRX(_("Can't use multiple args with arg_none!"));
         break;
         case arg_int:
@@ -286,24 +283,6 @@ void sl_parseargs(int *argc, char ***argv, sl_option_t *options){
         DBG("%c(%d) = getopt_long(argc, argv, %s, long_options, &%d); optopt=%c(%d), errno=%d", opt, opt, short_options, optind, optopt, optopt, errno);
         if(optind < 0 ) optind = get_optind(opt, options); // find short option -> need to know index of long
         // be careful with "-?" flag: all wrong or ambiguous flags will be interpreted as this!
-        /*
-        if(opt == '?'){ // real '?', wrong option or no argument when need
-            opt = optopt; // original short opt or 0 for wrong or long
-            if(opt == 0){ // '?' or wrong long
-                // there's no way to understand difference between real '-?' and unknown long flag
-                DBG("'?' or unknown parameter");
-                sl_showhelp(-1, options);
-            }else optind = get_optind(opt, options);
-            DBG("optind = %d", optind);
-            if(options[optind].has_arg == NEED_ARG || options[optind].has_arg == MULT_PAR)
-                sl_showhelp(optind, options); // need argument
-        }else{
-            // we should call functions get_optind / get_optindl for options where there's no long analog
-            if(opt < ' ') optind = get_optindl(&long_options[oindex], options);
-            else optind = get_optind(opt, options);
-        }
-        if(optind < 0) sl_showhelp(-1, options); // wrong argument
-        */
         DBG("index=%d", optind);
         opts = &options[optind];
         DBG("Got option %s", opts->name);
@@ -327,23 +306,23 @@ void sl_parseargs(int *argc, char ***argv, sl_option_t *options){
             break;
             case arg_int:
                 result = myatoll(aptr, optarg, arg_int);
-                type = _("integer");
+                type = "integer";
             break;
             case arg_longlong:
                 result = myatoll(aptr, optarg, arg_longlong);
-                type = _("long long");
+                type = "long long";
             break;
             case arg_double:
                 result = myatod(aptr, optarg, arg_double);
-                type = _("double");
+                type = "double";
             break;
             case arg_float:
                 result = myatod(aptr, optarg, arg_float);
-                type = _("float");
+                type = "float";
             break;
             case arg_string:
                 result = (*((void**)aptr) = (void*)strdup(optarg)) != NULL;
-                type = _("string");
+                type = "string";
             break;
             case arg_function:
                 result = ((sl_argfn_t)aptr)(optarg);
@@ -504,17 +483,14 @@ int sl_get_suboption(char *str, sl_suboption_t *opt){
         }
         int idx = findsubopt(tok, opt);
         if(idx < 0){
-            /// Неправильный параметр: %s
             WARNX(_("Wrong parameter: %s"), tok);
             goto returning;
         }
         if(noarg && opt[idx].has_arg == NEED_ARG){
-            /// %s: необходим аргумент!
             WARNX(_("%s: need argument!"), tok);
             goto returning;
         }
         if(!opt_setarg(opt, idx, val)){
-            /// Неправильный аргумент \"%s\" параметра \"%s\"
             WARNX(_("Wrong argument \"%s\" of parameter \"%s\""), val, tok);
             goto returning;
         }

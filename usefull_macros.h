@@ -377,3 +377,65 @@ typedef struct{
 int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]);
 char *sl_print_opts(sl_option_t *opt, int showall);
 int sl_conf_readopts(const char *filename, sl_option_t *options);
+
+/******************************************************************************\
+                         The original ringbuffer.h
+\******************************************************************************/
+
+// ring buffer for string or binary data
+typedef struct{
+    uint8_t *data;          // data buffer
+    size_t length;          // its length
+    size_t head;               // head index
+    size_t tail;               // tail index
+    pthread_mutex_t busy;   // mutex of buffer activity
+} sl_ringbuffer;
+
+sl_ringbuffer *sl_RB_new(size_t size);
+void sl_RB_delete(sl_ringbuffer **b);
+size_t sl_RB_read(sl_ringbuffer *b, uint8_t *s, size_t len);
+ssize_t sl_RB_readto(sl_ringbuffer *b, uint8_t byte, uint8_t *s, size_t len);
+ssize_t sl_RB_hasbyte(sl_ringbuffer *b, uint8_t byte);
+int sl_RB_putbyte(sl_ringbuffer *b, uint8_t byte);
+size_t sl_RB_write(sl_ringbuffer *b, const uint8_t *str, size_t len);
+size_t sl_RB_datalen(sl_ringbuffer *b);
+void sl_RB_clearbuf(sl_ringbuffer *b);
+ssize_t sl_RB_readline(sl_ringbuffer *b, char *s, size_t len);
+size_t sl_RB_writestr(sl_ringbuffer *b, char *s);
+
+/******************************************************************************\
+                         The original socket.h
+\******************************************************************************/
+
+// handler result: what to send to client
+
+typedef enum{
+    RESULT_OK,      // all OK
+    RESULT_FAIL,    // failed running command
+    RESULT_BADVAL,  // bad value
+    RESULT_BADKEY,  // bad (non-existant) key
+    RESULT_SILENCE, // send nothing to client (in case of handlers which sends data by themself)
+    RESULT_NUM      // total amount of enum fields
+} sl_hresult;
+
+typedef sl_hresult (*sl_msghandler)(int fd, const char *key, const char *val);
+
+typedef struct{
+    sl_msghandler handler;
+    const char *key;
+    const char *help;
+} sl_handleritem;
+
+typedef enum{
+    SOCKT_UNIX,     // UNIX socket
+    SOCKT_NETLOCAL, // INET socket but only for localhost
+    SOCKT_NET       // true INET socket
+} sl_socktype;
+
+const char *sl_hresult2str(sl_hresult r);
+int sl_start_socket(int isserver, int isnet, const char *path);
+void sl_sendbinmessage(int fd, const uint8_t *msg, int l);
+void sl_sendstrmessage(int fd, const char *msg);
+
+
+

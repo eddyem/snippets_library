@@ -191,12 +191,10 @@ long sl_random_seed(){
     int fd = open("/dev/random", O_RDONLY);
     do{
         if(-1 == fd){
-            /// Не могу открыть /dev/random
             WARN(_("Can't open /dev/random"));
             fail = 1; break;
         }
         if(sizeof(long) != read(fd, &r_ini, sizeof(long))){
-            /// Не могу прочесть /dev/random
             WARN(_("Can't read /dev/random"));
             fail = 1;
         }
@@ -247,29 +245,24 @@ sl_mmapbuf_t *sl_mmap(char *filename){
     size_t Mlen;
     struct stat statbuf;
     if(!filename){
-        /// Не задано имя файла!
         WARNX(_("No filename given!"));
         return NULL;
     }
     if((fd = open(filename, O_RDONLY)) < 0){
-        /// Не могу открыть %s для чтения
         WARN(_("Can't open %s for reading"), filename);
         return NULL;
     }
     if(fstat (fd, &statbuf) < 0){
-        /// Не могу выполнить stat %s
         WARN(_("Can't stat %s"), filename);
         close(fd);
         return NULL;
     }
     Mlen = statbuf.st_size;
     if((ptr = mmap (0, Mlen, PROT_READ, MAP_PRIVATE, fd, 0)) == MAP_FAILED){
-        /// Ошибка mmap
         WARN(_("Mmap error for input"));
         close(fd);
         return NULL;
     }
-    /// Не могу закрыть mmap'нутый файл
     if(close(fd)) WARN(_("Can't close mmap'ed file"));
     sl_mmapbuf_t *ret = MALLOC(sl_mmapbuf_t, 1);
     ret->data = ptr;
@@ -283,7 +276,6 @@ sl_mmapbuf_t *sl_mmap(char *filename){
  */
 void sl_munmap(sl_mmapbuf_t *b){
     if(munmap(b->data, b->len)){
-        /// Не могу munmap
         ERR(_("Can't munmap"));
     }
     FREE(b);
@@ -352,7 +344,6 @@ void sl_setup_con(){
 #else
     if(tcsetattr(STDIN_FILENO, TCSANOW, &newt) < 0){
 #endif
-        /// Не могу настроить консоль
         WARN(_("Can't setup console"));
 #ifndef SL_USE_OLD_TTY
         ioctl(STDIN_FILENO, TCSETS2, &oldt);
@@ -409,7 +400,6 @@ int sl_str2d(double *num, const char *str){
     if(!str) return FALSE;
     res = strtod(str, &endptr);
     if(endptr == str || *str == '\0' || *endptr != '\0'){
-        /// "Неправильный формат числа double '%s'"
         WARNX(_("Wrong double number format '%s'"), str);
         return FALSE;
     }
@@ -423,8 +413,7 @@ int sl_str2ll(long long *num, const char *str){
     if(!str) return FALSE;
     res = strtoll(str, &endptr, 0);
     if(endptr == str || *str == '\0' || *endptr != '\0'){
-        /// "Неправильный формат числа double!"
-        WARNX(_("Wrong number format!"));
+        WARNX(_("Wrong integer number format '%s'"));
         return FALSE;
     }
     if(num) *num = res;
