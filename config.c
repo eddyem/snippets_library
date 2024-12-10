@@ -34,7 +34,7 @@
  * also if `key` have several words only first saved, `value` can be long string with or without quotations
  */
 int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]){
-    DBG("got pair: '%s'", pair);
+    //DBG("got pair: '%s'", pair);
     if(!pair || !*pair) return 0; // empty line
     char *kstart = sl_omitspaces(pair);
     if(!*kstart || *kstart == SL_COMMENT_CHAR) return 0; // only spaces
@@ -44,13 +44,13 @@ int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]
     char *cmnt = strchr(kstart, SL_COMMENT_CHAR);
     if(eq && cmnt && cmnt < eq) eq = NULL; // comment starting before equal sign
     if(eq){ do{
-        DBG("got equal symbol: '%s'", eq);
+        //DBG("got equal symbol: '%s'", eq);
         char *vstart = sl_omitspaces(eq + 1);
         if(!*vstart) break; // empty line or only spaces after `=`
         char *vend = sl_omitspacesr(vstart);
         size_t l = SL_VAL_LEN - 1; // truncate value to given length
         if(l > (size_t)(vend - vstart)) l = vend - vstart;
-        DBG("l=%zd", l);
+        //DBG("l=%zd", l);
         strncpy(value, vstart, l);
         value[l] = 0;
         cmnt = strchr(value, SL_COMMENT_CHAR);
@@ -59,18 +59,19 @@ int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]
             *sl_omitspacesr(value) = 0;
         }
         if(!*value) break;
-        DBG("Got value: '%s'", value);
+        //DBG("Got value: '%s'", value);
         ret = 2;
     }while(0);
-    }else eq = kstart + strlen(kstart) - 1;
+    }else eq = kstart + strlen(kstart);
     for(; kend < eq && !isspace(*kend); ++kend);
     size_t l = SL_KEY_LEN - 1;
     if(l > (size_t)(kend - kstart)) l = kend - kstart;
+    //DBG("kend=%c, kstart=%c, l=%zd", *kend, *kstart, l);
     strncpy(key, kstart, l);
     key[l] = 0;
     cmnt = strchr(key, SL_COMMENT_CHAR);
     if(cmnt) *cmnt = 0;
-    DBG("Got key: '%s'", key);
+    //DBG("Got key: '%s'", key);
     return ret;
 }
 

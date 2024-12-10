@@ -28,6 +28,8 @@
 #endif
 
 #include <errno.h>          // errno
+#include <netdb.h>          // struct addrinfo
+#include <pthread.h>
 #include <stdlib.h>         // alloc, free
 #include <sys/types.h>      // pid_t
 #include <unistd.h>         // pid_t
@@ -152,9 +154,13 @@ char *sl_omitspaces(const char *str);
 // omit trailing spaces
 char *sl_omitspacesr(const char *v);
 
-// convert string to double with checking
+// convert string to double/integer with checking
 int sl_str2d(double *num, const char *str);
 int sl_str2ll(long long *num, const char *str);
+int sl_str2i(int *num, const char *str);
+
+int sl_canread(int fd);
+int sl_canwrite(int fd);
 
 /******************************************************************************\
                          The original term.h
@@ -389,53 +395,114 @@ typedef struct{
     size_t head;               // head index
     size_t tail;               // tail index
     pthread_mutex_t busy;   // mutex of buffer activity
-} sl_ringbuffer;
+} sl_ringbuffer_t;
 
-sl_ringbuffer *sl_RB_new(size_t size);
-void sl_RB_delete(sl_ringbuffer **b);
-size_t sl_RB_read(sl_ringbuffer *b, uint8_t *s, size_t len);
-ssize_t sl_RB_readto(sl_ringbuffer *b, uint8_t byte, uint8_t *s, size_t len);
-ssize_t sl_RB_hasbyte(sl_ringbuffer *b, uint8_t byte);
-int sl_RB_putbyte(sl_ringbuffer *b, uint8_t byte);
-size_t sl_RB_write(sl_ringbuffer *b, const uint8_t *str, size_t len);
-size_t sl_RB_datalen(sl_ringbuffer *b);
-void sl_RB_clearbuf(sl_ringbuffer *b);
-ssize_t sl_RB_readline(sl_ringbuffer *b, char *s, size_t len);
-size_t sl_RB_writestr(sl_ringbuffer *b, char *s);
+sl_ringbuffer_t *sl_RB_new(size_t size);
+void sl_RB_delete(sl_ringbuffer_t **b);
+size_t sl_RB_read(sl_ringbuffer_t *b, uint8_t *s, size_t len);
+ssize_t sl_RB_readto(sl_ringbuffer_t *b, uint8_t byte, uint8_t *s, size_t len);
+ssize_t sl_RB_hasbyte(sl_ringbuffer_t *b, uint8_t byte);
+int sl_RB_putbyte(sl_ringbuffer_t *b, uint8_t byte);
+size_t sl_RB_write(sl_ringbuffer_t *b, const uint8_t *str, size_t len);
+size_t sl_RB_datalen(sl_ringbuffer_t *b);
+size_t sl_RB_freesize(sl_ringbuffer_t *b);
+void sl_RB_clearbuf(sl_ringbuffer_t *b);
+ssize_t sl_RB_readline(sl_ringbuffer_t *b, char *s, size_t len);
+size_t sl_RB_writestr(sl_ringbuffer_t *b, char *s);
 
 /******************************************************************************\
                          The original socket.h
 \******************************************************************************/
 
 // handler result: what to send to client
-
 typedef enum{
     RESULT_OK,      // all OK
     RESULT_FAIL,    // failed running command
     RESULT_BADVAL,  // bad value
     RESULT_BADKEY,  // bad (non-existant) key
     RESULT_SILENCE, // send nothing to client (in case of handlers which sends data by themself)
-    RESULT_NUM      // total amount of enum fields
-} sl_hresult;
+    RESULT_AMOUNT  // total amount of enum fields
+} sl_sock_hresult_e;
 
-typedef sl_hresult (*sl_msghandler)(int fd, const char *key, const char *val);
+// data types with timestamp
+typedef struct{
+    double timestamp; // time of last change
+    double val;
+} sl_sock_double_t;
 
 typedef struct{
-    sl_msghandler handler;
-    const char *key;
-    const char *help;
-} sl_handleritem;
+    double timestamp; // time of last change
+    int64_t val;
+} sl_sock_int_t;
 
+typedef struct{
+    double timestamp; // time of last change
+    char val[SL_VAL_LEN];
+    int len;        // strlen of `val`
+} sl_sock_string_t;
+
+struct sl_sock_hitem;
+struct sl_sock;
+
+// socket `key` handlers
+typedef sl_sock_hresult_e (*sl_sock_msghandler)(struct sl_sock *client, struct sl_sock_hitem *item, const char *val);
+// handler item
+typedef struct sl_sock_hitem{
+    sl_sock_msghandler handler; // function-handler
+    const char *key;            // key name
+    const char *help;           // key help
+    void *data;                 // user data (e.g. struct key-varptr-limits)
+} sl_sock_hitem_t;
+
+// socket type
 typedef enum{
     SOCKT_UNIX,     // UNIX socket
     SOCKT_NETLOCAL, // INET socket but only for localhost
-    SOCKT_NET       // true INET socket
-} sl_socktype;
+    SOCKT_NET,      // true INET socket
+    SOCKT_AMOUNT    // amount of types
+} sl_socktype_e;
 
-const char *sl_hresult2str(sl_hresult r);
-int sl_start_socket(int isserver, int isnet, const char *path);
-void sl_sendbinmessage(int fd, const uint8_t *msg, int l);
-void sl_sendstrmessage(int fd, const char *msg);
+// socket itself
+typedef struct sl_sock{
+    int fd;                     // file descriptor
+    int connected;              // == TRUE if connected
+    sl_socktype_e type;         // type
+    sl_ringbuffer_t *buffer;    // input data buffer
+    char *node;                 // original UNIX-socket path or node name for INET (NULL - localhost client or any server)
+    char *service;              // NULL for UNIX-socket and port for INET
+    struct addrinfo *addrinfo;  // filled addrinfo structure
+    void *data;                 // user data
+    pthread_mutex_t mutex;      // read/write mutex
+    pthread_t rthread;          // reading ring buffer thread for client and main server thread for server
+    char IP[INET_ADDRSTRLEN];   // client's IP address
+    sl_sock_hitem_t *handlers;  // if non-NULL, run handler's thread when opened
+} sl_sock_t;
 
+#if 0
+// connected client descriptor
+typedef struct sl_sock_client{
+    sl_sock_t *socket;  // socket file descriptor
+    const char *IP;     // IP address formatted string
+    void *res;          // user data
+} sl_sock_client_t;
+#endif
 
+const char *sl_sock_hresult2str(sl_sock_hresult_e r);
+void sl_sock_delete(sl_sock_t **sock);
+sl_sock_t *sl_sock_run_client(sl_socktype_e type, const char *path, int bufsiz);
+sl_sock_t *sl_sock_run_server(sl_socktype_e type, const char *path, int bufsiz, sl_sock_hitem_t *handlers);
+void sl_sock_changemaxclients(int val);
+int sl_sock_getmaxclients();
+typedef void (*sl_sock_maxclh_t)(int fd);
+void sl_sock_maxclhandler(sl_sock_maxclh_t h);
+
+ssize_t sl_sock_sendbinmessage(sl_sock_t *socket, const uint8_t *msg, size_t l);
+ssize_t sl_sock_sendbyte(sl_sock_t *socket, uint8_t byte);
+ssize_t sl_sock_sendstrmessage(sl_sock_t *socket, const char *msg);
+ssize_t sl_sock_readline(sl_sock_t *sock, char *str, size_t len);
+int sl_sock_sendall(uint8_t *data, size_t len);
+
+sl_sock_hresult_e sl_sock_inthandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
+sl_sock_hresult_e sl_sock_dblhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
+sl_sock_hresult_e sl_sock_strhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
 

@@ -43,7 +43,7 @@ int main(int argc, char **argv){
     sl_init();
     sl_parseargs(&argc, &argv, cmdlnopts);
     if(G.help) sl_showhelp(-1, cmdlnopts);
-    sl_ringbuffer *b = sl_RB_new(G.size);
+    sl_ringbuffer_t *b = sl_RB_new(G.size);
     if(!b) return 1;
     printf("Created ring buffer of %d bytes\n", G.size);
     printf("Enter lines of text to fill it or type (get) to get one line from buffer\n");

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-11-15 11:38+0300\n"
+"POT-Creation-Date: 2024-12-10 17:44+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,31 +17,31 @@ msgstr ""
 "Content-Type: text/plain; charset=koi8-r\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:225
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:226
 msgid "Unsupported option type"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:228
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:229
 #, c-format
 msgid "Wrong number format '%s'"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:272
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:273
 #, c-format
 msgid "Can't open %s"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:283
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:284
 #, c-format
 msgid "Wrong key: '%s'"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:289
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:290
 #, c-format
 msgid "Key '%s' need value"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:295
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/config.c:296
 #, c-format
 msgid "Key '%s' have no argptr!"
 msgstr ""
@@ -103,6 +103,30 @@ msgstr ""
 #: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:494
 #, c-format
 msgid "Wrong argument \"%s\" of parameter \"%s\""
+msgstr ""
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:133
+msgid "Server disconnected"
+msgstr ""
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:208
+msgid "Can't start server handlers thread"
+msgstr ""
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:245
+msgid "Limit of connections reached"
+msgstr ""
+
+#. buffer overflow
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:319
+#, c-format
+msgid "Server thread: buffer overflow from \"%s\""
+msgstr ""
+
+#. never reached
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:381
+#, c-format
+msgid "Unsupported socket type %d"
 msgstr ""
 
 #: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:87
@@ -185,6 +209,11 @@ msgid "Wrong double number format '%s'"
 msgstr ""
 
 #: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:416
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:428
 #, c-format
 msgid "Wrong integer number format '%s'"
+msgstr ""
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:432
+msgid "Number out of integer limits"
 msgstr ""

@@ -419,6 +419,81 @@ int sl_str2ll(long long *num, const char *str){
     if(num) *num = res;
     return TRUE;
 }
+int sl_str2i(int *num, const char *str){
+    long long res;
+    char *endptr;
+    if(!str) return FALSE;
+    res = strtoll(str, &endptr, 0);
+    if(endptr == str || *str == '\0' || *endptr != '\0'){
+        WARNX(_("Wrong integer number format '%s'"));
+        return FALSE;
+    }
+    if(res > INT_MAX || res < INT_MIN){
+        WARNX(_("Number out of integer limits"));
+        return FALSE;
+    }
+    if(num) *num = (int)res;
+    return TRUE;
+}
+
+
+/**
+ * @brief sl_canread - run select() for given fd
+ * @param fd - file descriptor
+ * @return -1 if EINTR, 0 if none, 1 if ready to read
+ */
+int sl_canread(int fd){
+    if(fd < 0) return -1;
+    fd_set fds;
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100;
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+    do{
+        int rc = select(fd+1, &fds, NULL, NULL, &timeout);
+        if(rc < 0){
+            if(errno != EINTR){
+                WARN("select()");
+                return -1;
+            }
+            continue;
+        }
+        break;
+    }while(1);
+    if(FD_ISSET(fd, &fds)) return 1;
+    return 0;
+}
+
+/**
+ * @brief sl_canwrite - run select() for given fd
+ * @param fd - file descriptor
+ * @return -1 if EINTR, 0 if none, 1 if ready to write without blocking
+ */
+int sl_canwrite(int fd){
+    fd_set fds;
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100;
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+    //DBG("try ability of written to %d", fd);
+    do{
+        int rc = select(fd+1, NULL, &fds, NULL, &timeout);
+        if(rc < 0){
+            DBG("-1");
+            if(errno != EINTR){
+                LOGWARN("select()");
+                WARN("select()");
+                return -1;
+            }
+            continue;
+        }
+        break;
+    }while(1);
+    if(FD_ISSET(fd, &fds)) return 1;
+    return 0;
+}
 
 /******************************************************************************\
  *                              Logging to file

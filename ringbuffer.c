@@ -25,8 +25,8 @@
  * @param size - RB size
  * @return RB
  */
-sl_ringbuffer *sl_RB_new(size_t size){
-    sl_ringbuffer *b = MALLOC(sl_ringbuffer, 1);
+sl_ringbuffer_t *sl_RB_new(size_t size){
+    sl_ringbuffer_t *b = MALLOC(sl_ringbuffer_t, 1);
     b->data = MALLOC(uint8_t, size);
     pthread_mutex_init(&b->busy, NULL);
     b->head = b->tail = 0;
@@ -38,13 +38,11 @@ sl_ringbuffer *sl_RB_new(size_t size){
  * @brief sl_RB_delete - free ringbuffer
  * @param b - buffer to free
  */
-void sl_RB_delete(sl_ringbuffer **b){
+void sl_RB_delete(sl_ringbuffer_t **b){
     if(!b || !*b) return;
-    sl_ringbuffer *bptr = *b;
-    pthread_mutex_lock(&bptr->busy);
+    sl_ringbuffer_t *bptr = *b;
     FREE(bptr->data);
     *b = 0;
-    pthread_mutex_unlock(&bptr->busy);
     FREE(bptr);
 }
 
@@ -53,15 +51,23 @@ void sl_RB_delete(sl_ringbuffer **b){
  * @param b - buffer
  * @return N
  */
-static size_t datalen(sl_ringbuffer *b){
+static size_t datalen(sl_ringbuffer_t *b){
     if(b->tail >= b->head) return (b->tail - b->head);
     else return (b->length - b->head + b->tail);
 }
 
 // datalen but with blocking of RB
-size_t sl_RB_datalen(sl_ringbuffer *b){
+size_t sl_RB_datalen(sl_ringbuffer_t *b){
     pthread_mutex_lock(&b->busy);
     size_t l = datalen(b);
+    pthread_mutex_unlock(&b->busy);
+    return l;
+}
+
+// size of free space in buffer
+size_t sl_RB_freesize(sl_ringbuffer_t *b){
+    pthread_mutex_lock(&b->busy);
+    size_t l = b->length - datalen(b);
     pthread_mutex_unlock(&b->busy);
     return l;
 }
@@ -72,7 +78,7 @@ size_t sl_RB_datalen(sl_ringbuffer *b){
  * @param byte - what to find
  * @return index of byte or -1 if not found or no data
  */
-static ssize_t hasbyte(sl_ringbuffer *b, uint8_t byte){
+static ssize_t hasbyte(sl_ringbuffer_t *b, uint8_t byte){
     if(b->head == b->tail) return -1; // no data in buffer
     size_t startidx = b->head;
     if(b->head > b->tail){
@@ -86,19 +92,19 @@ static ssize_t hasbyte(sl_ringbuffer *b, uint8_t byte){
 }
 
 // hasbyte with block
-ssize_t sl_RB_hasbyte(sl_ringbuffer *b, uint8_t byte){
+ssize_t sl_RB_hasbyte(sl_ringbuffer_t *b, uint8_t byte){
     pthread_mutex_lock(&b->busy);
     size_t idx = hasbyte(b, byte);
     pthread_mutex_unlock(&b->busy);
     return idx;
 }
 // increment head or tail
-inline void incr(sl_ringbuffer *b, volatile size_t *what, size_t n){
+inline void incr(sl_ringbuffer_t *b, volatile size_t *what, size_t n){
     *what += n;
     if(*what >= b->length) *what -= b->length;
 }
 
-static size_t rbread(sl_ringbuffer *b, uint8_t *s, size_t len){
+static size_t rbread(sl_ringbuffer_t *b, uint8_t *s, size_t len){
     size_t l = datalen(b);
     if(!l) return 0;
     if(l > len) l = len;
@@ -122,7 +128,7 @@ static size_t rbread(sl_ringbuffer *b, uint8_t *s, size_t len){
  * @param len - length of `s`
  * @return amount of bytes read
  */
-size_t sl_RB_read(sl_ringbuffer *b, uint8_t *s, size_t len){
+size_t sl_RB_read(sl_ringbuffer_t *b, uint8_t *s, size_t len){
     pthread_mutex_lock(&b->busy);
     size_t got = rbread(b, s, len);
     pthread_mutex_unlock(&b->busy);
@@ -137,7 +143,7 @@ size_t sl_RB_read(sl_ringbuffer *b, uint8_t *s, size_t len){
  * @param len - length of `s`
  * @return amount of bytes read or -1 if `s` have insufficient size
  */
-ssize_t sl_RB_readto(sl_ringbuffer *b, uint8_t byte, uint8_t *s, size_t len){
+ssize_t sl_RB_readto(sl_ringbuffer_t *b, uint8_t byte, uint8_t *s, size_t len){
     ssize_t got = 0;
     pthread_mutex_lock(&b->busy);
     ssize_t idx = hasbyte(b, byte);
@@ -160,7 +166,7 @@ ret:
  * @return amount of characters read or -1 if buffer too small
  * !!! this function changes '\n' to 0 in `s`; `len` should include trailing '\0' too
  */
-ssize_t sl_RB_readline(sl_ringbuffer *b, char *s, size_t len){
+ssize_t sl_RB_readline(sl_ringbuffer_t *b, char *s, size_t len){
     ssize_t got = 0;
     pthread_mutex_lock(&b->busy);
     ssize_t idx = hasbyte(b, '\n');
@@ -184,7 +190,7 @@ ret:
  * @param byte - data byte
  * @return FALSE if there's no place for `byte` in `b`
  */
-int sl_RB_putbyte(sl_ringbuffer *b, uint8_t byte){
+int sl_RB_putbyte(sl_ringbuffer_t *b, uint8_t byte){
     int rtn = FALSE;
     pthread_mutex_lock(&b->busy);
     size_t s = datalen(b);
@@ -204,11 +210,11 @@ ret:
  * @param len - data length
  * @return amount of bytes wrote (can be less than `len`)
  */
-size_t sl_RB_write(sl_ringbuffer *b, const uint8_t *str, size_t len){
+size_t sl_RB_write(sl_ringbuffer_t *b, const uint8_t *str, size_t len){
     pthread_mutex_lock(&b->busy);
     size_t r = b->length - 1 - datalen(b); // rest length
     if(len > r) len = r;
-    if(!len){ r = 0; goto ret; }
+    if(!len) goto ret;
     size_t _1st = b->length - b->tail;
     if(_1st > len) _1st = len;
     memcpy(b->data + b->tail, str, _1st);
@@ -218,14 +224,14 @@ size_t sl_RB_write(sl_ringbuffer *b, const uint8_t *str, size_t len){
     incr(b, &b->tail, len);
 ret:
     pthread_mutex_unlock(&b->busy);
-    return r;
+    return len;
 }
 
 /**
  * @brief sl_RB_clearbuf - reset buffer
  * @param b - rb
   */
-void sl_RB_clearbuf(sl_ringbuffer *b){
+void sl_RB_clearbuf(sl_ringbuffer_t *b){
     pthread_mutex_lock(&b->busy);
     b->head = 0;
     b->tail = 0;
@@ -238,7 +244,7 @@ void sl_RB_clearbuf(sl_ringbuffer *b){
  * @param s - string
  * @return amount of bytes written (strlen of s) or 0
  */
-size_t sl_RB_writestr(sl_ringbuffer *b, char *s){
+size_t sl_RB_writestr(sl_ringbuffer_t *b, char *s){
     size_t len = strlen(s);
     pthread_mutex_lock(&b->busy);
     size_t r = b->length - 1 - datalen(b); // rest length
