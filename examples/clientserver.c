@@ -19,6 +19,8 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
 #include <usefull_macros.h>
 
 static sl_sock_t *s = NULL;
@@ -48,38 +50,70 @@ static sl_option_t cmdlnopts[] = {
     end_option
 };
 
+static sl_ringbuffer_t *rb = NULL;
+static char rbuf[BUFSIZ], tbuf[BUFSIZ];
+
 void signals(int sig){
     if(sig){
         signal(sig, SIG_IGN);
         DBG("Get signal %d, quit.\n", sig);
+        LOGERR("Exit with status %d", sig);
+    }else LOGERR("Exit");
+    if(rb){
+        while(sl_RB_readline(rb, rbuf, BUFSIZ-1)){ // show all recent messages from server
+            printf("server > %s\n", rbuf);
+        }
+        sl_RB_delete(&rb);
     }
-    LOGERR("Exit with status %d", sig);
     sl_restore_con();
     if(s) sl_sock_delete(&s);
     exit(sig);
 }
 
 static void runclient(sl_sock_t *s){
-    char buf[300];
+    rb = sl_RB_new(BUFSIZ * 4);
     if(!s) return;
     do{
-        printf("send > ");
-        char *r = fgets(buf, 300, stdin);
-        if(r){
+        while(sl_RB_readline(rb, rbuf, BUFSIZ-1)){ // show all recent messages from server
+            printf("server > %s\n", rbuf);
+        }
+        printf("send > "); fflush(stdout);
+        int c, k = 0;
+        while (k < BUFSIZ-1){
+            ssize_t got = sl_sock_readline(s, rbuf, BUFSIZ);
+            if(got > 0){
+                DBG("GOT %zd", got);
+                if(k == 0){ printf("\nserver > %s\nsend > ", rbuf); fflush(stdout); }// user didn't type anything -> show server messages
+                else sl_RB_writestr(rb, rbuf);
+            } else if(got < 0){ DBG("disc"); signals(0);}
+            if(!s || !s->connected){ DBG("DISC"); signals(0); }
+            c = sl_read_con();
+            if(!c) continue;
+            if(c == '\b' || c == 127){ // use DEL and BACKSPACE to erase previous symbol
+                if(k){
+                    --k;
+                    printf("\b \b");
+                }
+            }else{
+                if(c == EOF) break;
+                tbuf[k++] = c;
+                printf("%c", c);
+            }
+            fflush(stdout);
+            if(c == '\n') break;
+        }
+        tbuf[k] = 0;
+        DBG("Your str: _%s_", tbuf);
+        if(c == EOF) break;
+        if(k >= BUFSIZ-1) ERRX("Congrats! You caused buffer overflow!");
+        if(k){
             DBG("try");
-            if(-1 == sl_sock_sendstrmessage(s, buf)){
+            if(-1 == sl_sock_sendstrmessage(s, tbuf)){
                 WARNX("Error send");
                 return;
             }
             DBG("OK");
         }else break;
-        ssize_t got = 0;
-        double t0 = sl_dtime();
-        do{
-            got = sl_sock_readline(s, buf, 299);
-            if(got > 0) printf("server > %s\n", buf);
-        }while(s && s->connected && (got > 0 || sl_dtime() - t0 < 0.3));
-        if(got < 0) break;
     } while(s && s->connected);
     WARNX("Ctrl+D or disconnected");
 }
@@ -87,11 +121,12 @@ static void runclient(sl_sock_t *s){
 // flags for standard handlers
 static sl_sock_int_t iflag = {0};
 static sl_sock_double_t dflag = {0};
+static sl_sock_string_t sflag = {0};
 
-static sl_sock_hresult_e dtimeh(sl_sock_t *client, _U_ sl_sock_hitem_t *item, _U_ const char *req){
+static sl_sock_hresult_e dtimeh(sl_sock_t _U_ *client, _U_ sl_sock_hitem_t *item, _U_ const char *req){
     char buf[32];
     snprintf(buf, 31, "UNIXT=%.2f\n", sl_dtime());
-    sl_sock_sendstrmessage(client, buf);
+    sl_sock_sendall((uint8_t*)buf, strlen(buf));
     return RESULT_SILENCE;
 }
 
@@ -105,17 +140,41 @@ static sl_sock_hresult_e show(sl_sock_t *client, _U_ sl_sock_hitem_t *item, _U_ 
     return RESULT_OK;
 }
 
+// Too much clients handler
 static void toomuch(int fd){
-    const char *m = "Try later: too much clients connected\n";
-    send(fd, m, sizeof(m+1), MSG_NOSIGNAL);
+    const char m[] = "Try later: too much clients connected\n";
+    send(fd, m, sizeof(m)-1, MSG_NOSIGNAL);
+    shutdown(fd, SHUT_WR);
+    DBG("shutdown, wait");
+    double t0 = sl_dtime();
+    uint8_t buf[8];
+    while(sl_dtime() - t0 < 11.){
+        if(sl_canread(fd)){
+            ssize_t got = read(fd, buf, 8);
+            DBG("Got=%zd", got);
+            if(got < 1) break;
+        }
+    }
+    DBG("Disc after %gs", sl_dtime() - t0);
     LOGWARN("Client fd=%d tried to connect after MAX reached", fd);
+}
+// new connections handler
+static void connected(sl_sock_t *c){
+    if(c->type == SOCKT_UNIX) LOGMSG("New client fd=%d connected", c->fd);
+    else LOGMSG("New client fd=%d, IP=%s connected", c->fd, c->IP);
+}
+// disconnected handler
+static void disconnected(sl_sock_t *c){
+    if(c->type == SOCKT_UNIX) LOGMSG("Disconnected client fd=%d", c->fd);
+    else LOGMSG("Disconnected client fd=%d, IP=%s", c->fd, c->IP);
 }
 
 static sl_sock_hitem_t handlers[] = {
     {sl_sock_inthandler, "int", "set/get integer flag", (void*)&iflag},
     {sl_sock_dblhandler, "dbl", "set/get double flag", (void*)&dflag},
+    {sl_sock_strhandler, "str", "set/get string variable", (void*)&sflag},
     {show, "show", "show current flags @ server console", NULL},
-    {dtimeh, "dtime", "get server's UNIX time", NULL},
+    {dtimeh, "dtime", "get server's UNIX time for all clients connected", NULL},
     {NULL, NULL, NULL, NULL}
 };
 
@@ -128,8 +187,11 @@ int main(int argc, char **argv){
     if(G.isserver){
         sl_sock_changemaxclients(G.maxclients);
         sl_sock_maxclhandler(toomuch);
+        sl_sock_connhandler(connected);
+        sl_sock_dischandler(disconnected);
         s = sl_sock_run_server(type, G.node, -1, handlers);
     } else {
+        sl_setup_con();
         s = sl_sock_run_client(type, G.node, -1);
     }
     if(!s) ERRX("Can't create socket and/or run threads");

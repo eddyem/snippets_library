@@ -17,6 +17,7 @@
  */
 
 #include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 #include "usefull_macros.h"
 
@@ -67,7 +68,7 @@ size_t sl_RB_datalen(sl_ringbuffer_t *b){
 // size of free space in buffer
 size_t sl_RB_freesize(sl_ringbuffer_t *b){
     pthread_mutex_lock(&b->busy);
-    size_t l = b->length - datalen(b);
+    size_t l = b->length - datalen(b) - 1;
     pthread_mutex_unlock(&b->busy);
     return l;
 }
@@ -76,7 +77,7 @@ size_t sl_RB_freesize(sl_ringbuffer_t *b){
  * @brief hasbyte - check if RB have given byte
  * @param b - rb
  * @param byte - what to find
- * @return index of byte or -1 if not found or no data
+ * @return index of byte, -2 if not found or -1 if no data in buffer
  */
 static ssize_t hasbyte(sl_ringbuffer_t *b, uint8_t byte){
     if(b->head == b->tail) return -1; // no data in buffer
@@ -88,7 +89,7 @@ static ssize_t hasbyte(sl_ringbuffer_t *b, uint8_t byte){
     }
     for(size_t found = startidx; found < b->tail; ++found)
         if(b->data[found] == byte) return found;
-    return -1;
+    return -2;
 }
 
 // hasbyte with block
@@ -163,14 +164,18 @@ ret:
  * @param b - rb
  * @param s - string buffer
  * @param len - length of `s`
- * @return amount of characters read or -1 if buffer too small
+ * @return amount of characters read or -2 if buffer overflow
  * !!! this function changes '\n' to 0 in `s`; `len` should include trailing '\0' too
  */
 ssize_t sl_RB_readline(sl_ringbuffer_t *b, char *s, size_t len){
     ssize_t got = 0;
     pthread_mutex_lock(&b->busy);
     ssize_t idx = hasbyte(b, '\n');
-    if(idx < 0) goto ret;
+    if(idx < 0){
+        if(idx == -1) idx = 0; // buffer is empty - return 0; else return error
+        goto ret;
+    }
+    DBG("Got newline -> read");
     size_t partlen = idx + 1 - b->head;
     // now calculate length of new data portion
     if((size_t)idx < b->head) partlen += b->length;
@@ -179,6 +184,7 @@ ssize_t sl_RB_readline(sl_ringbuffer_t *b, char *s, size_t len){
         got = rbread(b, (uint8_t*)s, partlen);
         s[partlen - 1] = 0; // substitute '\n' with trailing zero
     }
+    DBG("read: '%s'", s);
 ret:
     pthread_mutex_unlock(&b->busy);
     return got;
@@ -213,6 +219,7 @@ ret:
 size_t sl_RB_write(sl_ringbuffer_t *b, const uint8_t *str, size_t len){
     pthread_mutex_lock(&b->busy);
     size_t r = b->length - 1 - datalen(b); // rest length
+    DBG("rest: %zd, need: %zd", r, len);
     if(len > r) len = r;
     if(!len) goto ret;
     size_t _1st = b->length - b->tail;
@@ -248,6 +255,7 @@ size_t sl_RB_writestr(sl_ringbuffer_t *b, char *s){
     size_t len = strlen(s);
     pthread_mutex_lock(&b->busy);
     size_t r = b->length - 1 - datalen(b); // rest length
+    if(s[len-1] != '\n') s[len++] = '\n';
     if(len > r){ len = 0; goto ret; } // insufficient space - don't even try to write a part
     size_t _1st = b->length - b->tail;
     if(_1st > len) _1st = len;

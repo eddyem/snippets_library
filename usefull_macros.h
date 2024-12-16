@@ -478,23 +478,21 @@ typedef struct sl_sock{
     sl_sock_hitem_t *handlers;  // if non-NULL, run handler's thread when opened
 } sl_sock_t;
 
-#if 0
-// connected client descriptor
-typedef struct sl_sock_client{
-    sl_sock_t *socket;  // socket file descriptor
-    const char *IP;     // IP address formatted string
-    void *res;          // user data
-} sl_sock_client_t;
-#endif
-
 const char *sl_sock_hresult2str(sl_sock_hresult_e r);
 void sl_sock_delete(sl_sock_t **sock);
 sl_sock_t *sl_sock_run_client(sl_socktype_e type, const char *path, int bufsiz);
 sl_sock_t *sl_sock_run_server(sl_socktype_e type, const char *path, int bufsiz, sl_sock_hitem_t *handlers);
 void sl_sock_changemaxclients(int val);
 int sl_sock_getmaxclients();
+// max clients handler
 typedef void (*sl_sock_maxclh_t)(int fd);
 void sl_sock_maxclhandler(sl_sock_maxclh_t h);
+// new client connected handler
+typedef void (*sl_sock_connh_t)(sl_sock_t *s);
+void sl_sock_connhandler(sl_sock_connh_t h);
+// client disconnected handler
+typedef void (*sl_sock_disch_t)(sl_sock_t *s);
+void sl_sock_dischandler(sl_sock_disch_t h);
 
 ssize_t sl_sock_sendbinmessage(sl_sock_t *socket, const uint8_t *msg, size_t l);
 ssize_t sl_sock_sendbyte(sl_sock_t *socket, uint8_t byte);
