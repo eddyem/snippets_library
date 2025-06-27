@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <stdio.h>
 #ifdef SL_USE_OLD_TTY
 #include <termios.h>        // termios
 #else
@@ -445,7 +446,7 @@ struct sl_sock_hitem;
 struct sl_sock;
 
 // socket `key` handlers
-typedef sl_sock_hresult_e (*sl_sock_msghandler)(struct sl_sock *client, struct sl_sock_hitem *item, const char *val);
+typedef sl_sock_hresult_e (*sl_sock_msghandler)(struct sl_sock *s, struct sl_sock_hitem *item, const char *val);
 // handler item
 typedef struct sl_sock_hitem{
     sl_sock_msghandler handler; // function-handler
@@ -462,6 +463,30 @@ typedef enum{
     SOCKT_AMOUNT    // amount of types
 } sl_socktype_e;
 
+struct sl_sock;
+
+// default max clients amount
+#define SL_DEF_MAXCLIENTS   (32)
+// custom socket handlers: connect/disconnect/etc
+// max clients handler
+void sl_sock_maxclhandler(struct sl_sock *s, void (*h)(int));
+// client connected handler
+void sl_sock_connhandler(struct sl_sock *s, int(*h)(struct sl_sock*));
+// client disconnected handler
+void sl_sock_dischandler(struct sl_sock *s, void(*h)(struct sl_sock*));
+// unknown message handler (instead of "BADKEY" default message)
+void sl_sock_defmsghandler(struct sl_sock *s, sl_sock_hresult_e(*h)(struct sl_sock *s, const char *str));
+
+typedef enum{
+    SOCKM_RAW = 0,  // default sockets
+    SOCKM_GET,      // http methods - client should be closed after data processing
+    SOCKM_PUT,
+    SOCKM_POST,
+    SOCKM_PATCH,
+    SOCKM_DELETE,
+    SOCKM_AMOUNT
+} sl_sockmethod_e;
+
 // socket itself
 typedef struct sl_sock{
     int fd;                     // file descriptor
@@ -476,29 +501,33 @@ typedef struct sl_sock{
     pthread_t rthread;          // reading ring buffer thread for client and main server thread for server
     char IP[INET_ADDRSTRLEN];   // client's IP address
     sl_sock_hitem_t *handlers;  // if non-NULL, run handler's thread when opened
+    sl_sockmethod_e sockmethod; // method
+    uint64_t lineno;            // number of line read
+    int contlen;                // content length for POST method
+    int gotemptyline;           // == TRUE when found empty line in web request (to know that header is over)
+    char outbuffer[BUFSIZ];     // buffer for output data (if client is WEB)
+    size_t outplen;             // amount of bytes in `outbuffer`
+    // server-only items
+    int maxclients;             // max clients amount
+    void (*toomuch_handler)(int); // too much clients handler; it is running for client connected with number>maxclients (before closing its fd)
+    int (*newconnect_handler)(struct sl_sock*); // new client connected handler; it will be run each new connection
+    void (*disconnect_handler)(struct sl_sock*); // client disconnected handler
+    sl_sock_hresult_e(*defmsg_handler)(struct sl_sock *s, const char *str); // default message handler (the only without `handlers` array or instead of "BADKEY" answer
+    struct sl_sock **clients;   // pointer to clients array for `sendall`
 } sl_sock_t;
 
 const char *sl_sock_hresult2str(sl_sock_hresult_e r);
 void sl_sock_delete(sl_sock_t **sock);
 sl_sock_t *sl_sock_run_client(sl_socktype_e type, const char *path, int bufsiz);
 sl_sock_t *sl_sock_run_server(sl_socktype_e type, const char *path, int bufsiz, sl_sock_hitem_t *handlers);
-void sl_sock_changemaxclients(int val);
-int sl_sock_getmaxclients();
-// max clients handler
-typedef void (*sl_sock_maxclh_t)(int fd);
-void sl_sock_maxclhandler(sl_sock_maxclh_t h);
-// new client connected handler
-typedef void (*sl_sock_connh_t)(sl_sock_t *s);
-void sl_sock_connhandler(sl_sock_connh_t h);
-// client disconnected handler
-typedef void (*sl_sock_disch_t)(sl_sock_t *s);
-void sl_sock_dischandler(sl_sock_disch_t h);
+void sl_sock_changemaxclients(sl_sock_t *sock, int val);
+int sl_sock_getmaxclients(sl_sock_t *sock);
 
 ssize_t sl_sock_sendbinmessage(sl_sock_t *socket, const uint8_t *msg, size_t l);
 ssize_t sl_sock_sendbyte(sl_sock_t *socket, uint8_t byte);
 ssize_t sl_sock_sendstrmessage(sl_sock_t *socket, const char *msg);
 ssize_t sl_sock_readline(sl_sock_t *sock, char *str, size_t len);
-int sl_sock_sendall(uint8_t *data, size_t len);
+int sl_sock_sendall(sl_sock_t *sock, uint8_t *data, size_t len);
 
 sl_sock_hresult_e sl_sock_inthandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
 sl_sock_hresult_e sl_sock_dblhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);

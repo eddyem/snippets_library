@@ -1,10 +1,4 @@
-Wed Dec 23 17:22:39 MSK 2020
-
-VERSION 0.1.1:
-add tty_timeout()
-fix read_tty() for disconnect
-add logging
-add sl_libversion()
+Dec 16 2024
 
 VERSION 0.2.1:
 RENAME:
@@ -54,3 +48,11 @@ Remove "bool" type (change to int)
 FIXED bug with several only long options with same shortopt mark (like 0)
 Add simple config files, so you can move some of your parameters settings to it
 
+
+Wed Dec 23 17:22:39 MSK 2020
+
+VERSION 0.1.1:
+add tty_timeout()
+fix read_tty() for disconnect
+add logging
+add sl_libversion()

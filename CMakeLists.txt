@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 4.0)
 set(PROJ usefull_macros)
-set(MINOR_VERSION "2")
+set(MINOR_VERSION "3")
 set(MID_VERSION "3")
 set(MAJOR_VERSION "0")
 set(VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")

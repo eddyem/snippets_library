@@ -126,7 +126,7 @@ static sl_sock_string_t sflag = {0};
 static sl_sock_hresult_e dtimeh(sl_sock_t _U_ *client, _U_ sl_sock_hitem_t *item, _U_ const char *req){
     char buf[32];
     snprintf(buf, 31, "UNIXT=%.2f\n", sl_dtime());
-    sl_sock_sendall((uint8_t*)buf, strlen(buf));
+    sl_sock_sendall(s, (uint8_t*)buf, strlen(buf));
     return RESULT_SILENCE;
 }
 
@@ -158,15 +158,23 @@ static void toomuch(int fd){
     DBG("Disc after %gs", sl_dtime() - t0);
     LOGWARN("Client fd=%d tried to connect after MAX reached", fd);
 }
-// new connections handler
-static void connected(sl_sock_t *c){
+// new connections handler (return FALSE to reject client)
+static int connected(sl_sock_t *c){
     if(c->type == SOCKT_UNIX) LOGMSG("New client fd=%d connected", c->fd);
     else LOGMSG("New client fd=%d, IP=%s connected", c->fd, c->IP);
+    return TRUE;
 }
 // disconnected handler
 static void disconnected(sl_sock_t *c){
     if(c->type == SOCKT_UNIX) LOGMSG("Disconnected client fd=%d", c->fd);
     else LOGMSG("Disconnected client fd=%d, IP=%s", c->fd, c->IP);
+}
+static sl_sock_hresult_e defhandler(struct sl_sock *s, const char *str){
+    if(!s || !str) return RESULT_FAIL;
+    sl_sock_sendstrmessage(s, "You entered wrong command:\n```\n");
+    sl_sock_sendstrmessage(s, str);
+    sl_sock_sendstrmessage(s, "\n```\nTry \"help\"\n");
+    return RESULT_SILENCE;
 }
 
 static sl_sock_hitem_t handlers[] = {
@@ -185,16 +193,19 @@ int main(int argc, char **argv){
     if(!G.node) ERRX("Point node");
     sl_socktype_e type = (G.isunix) ? SOCKT_UNIX : SOCKT_NET;
     if(G.isserver){
-        sl_sock_changemaxclients(G.maxclients);
-        sl_sock_maxclhandler(toomuch);
-        sl_sock_connhandler(connected);
-        sl_sock_dischandler(disconnected);
         s = sl_sock_run_server(type, G.node, -1, handlers);
     } else {
         sl_setup_con();
         s = sl_sock_run_client(type, G.node, -1);
     }
     if(!s) ERRX("Can't create socket and/or run threads");
+    if(G.isserver){
+        sl_sock_changemaxclients(s, G.maxclients);
+        sl_sock_maxclhandler(s, toomuch);
+        sl_sock_connhandler(s, connected);
+        sl_sock_dischandler(s, disconnected);
+        sl_sock_defmsghandler(s, defhandler);
+    }
     sl_loglevel_e lvl = G.verbose + LOGLEVEL_ERR;
     if(lvl >= LOGLEVEL_AMOUNT) lvl = LOGLEVEL_AMOUNT - 1;
     if(G.logfile) OPENLOG(G.logfile, lvl, 1);

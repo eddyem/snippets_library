@@ -82,6 +82,9 @@ size_t sl_RB_freesize(sl_ringbuffer_t *b){
 static ssize_t hasbyte(sl_ringbuffer_t *b, uint8_t byte){
     if(b->head == b->tail) return -1; // no data in buffer
     size_t startidx = b->head;
+    /*DBG("head: %zd, tail: %zd (%c %c %c %c), search %02x",
+        b->head, b->tail, b->data[startidx], b->data[startidx+1],
+        b->data[startidx+2], b->data[startidx+3], byte);*/
     if(b->head > b->tail){
         for(size_t found = b->head; found < b->length; ++found)
             if(b->data[found] == byte) return found;
@@ -222,6 +225,13 @@ size_t sl_RB_write(sl_ringbuffer_t *b, const uint8_t *str, size_t len){
     DBG("rest: %zd, need: %zd", r, len);
     if(len > r) len = r;
     if(!len) goto ret;
+    /*green("buf:\n");
+    for(size_t i = 0; i < len; ++i){
+        char c = (char)str[i];
+        if(c > 31) printf("%c", c);
+        else printf("\\x%02x", c);
+    }
+    green("(end)\n");*/
     size_t _1st = b->length - b->tail;
     if(_1st > len) _1st = len;
     memcpy(b->data + b->tail, str, _1st);

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <poll.h>
@@ -29,37 +30,35 @@
 
 #include "usefull_macros.h"
 
-// max clients amount
-static int maxclients = 32;
-// too much clients handler; it is running for client connected with number>maxclients (before closing its fd)
-static sl_sock_maxclh_t toomuch_handler = NULL;
-// new client connected handler; it will be run each new connection
-static sl_sock_connh_t newconnect_handler = NULL;
-// client disconnected handler
-static sl_sock_disch_t disconnect_handler = NULL;
-
 /**
  * @brief sl_sock_changemaxclients - change amount of max simultaneously connected clients
  * SHOULD BE run BEFORE running of server
  * @param val - maximal clients number
  */
-void sl_sock_changemaxclients(int val){
-    maxclients = val;
+void sl_sock_changemaxclients(sl_sock_t *sock, int val){
+    if(sock) sock->maxclients = val;
 }
-int sl_sock_getmaxclients(){ return maxclients; }
+int sl_sock_getmaxclients(sl_sock_t *sock){
+    if(sock) return sock->maxclients;
+    else return -1;
+}
 
 // in each next function changed default handlers you can set h to NULL to remove your handler
 // setter of "too much clients" handler
-void sl_sock_maxclhandler(sl_sock_maxclh_t h){
-    toomuch_handler = h;
+void sl_sock_maxclhandler(sl_sock_t *sock, void (*h)(int)){
+    if(sock) sock->toomuch_handler = h;
 }
 // setter of "new client connected" handler
-void sl_sock_connhandler(sl_sock_connh_t h){
-    newconnect_handler = h;
+void sl_sock_connhandler(sl_sock_t *sock, int(*h)(struct sl_sock*)){
+    if(sock) sock->newconnect_handler = h;
 }
 // setter of "client disconnected" handler
-void sl_sock_dischandler(sl_sock_disch_t h){
-    disconnect_handler = h;
+void sl_sock_dischandler(sl_sock_t *sock, void(*h)(struct sl_sock*)){
+    if(sock) sock->disconnect_handler = h;
+}
+// setter of default client message handler
+void sl_sock_defmsghandler(struct sl_sock *sock, sl_sock_hresult_e(*h)(struct sl_sock *s, const char *str)){
+    if(sock) sock->defmsg_handler = h;
 }
 
 // text messages for `hresult`
@@ -163,33 +162,174 @@ errex:
     return NULL;
 }
 
-// common for server thread and `sendall`
-static sl_sock_t **clients = NULL;
-
 /**
  * @brief sl_sock_sendall - send data to all clients connected (works only for server)
  * @param data - message
  * @param len - its length
  * @return N of sends or -1 if no server process running
  */
-int sl_sock_sendall(uint8_t *data, size_t len){
-    if(!clients) return -1;
+int sl_sock_sendall(sl_sock_t *sock, uint8_t *data, size_t len){
+    FNAME();
+    if(!sock || !sock->clients) return -1;
     int nsent = 0;
-    for(int i = maxclients; i > 0; --i){
-        if(!clients[i]) continue;
-        if(clients[i]->fd < 0 || !clients[i]->connected) continue;
-        if((ssize_t)len == sl_sock_sendbinmessage(clients[i], data, len)) ++nsent;
+    for(int i = sock->maxclients; i > 0; --i){
+        if(!sock->clients[i]) continue;
+        if(sock->clients[i]->fd < 0 || !sock->clients[i]->connected) continue;
+        if((ssize_t)len == sl_sock_sendbinmessage(sock->clients[i], data, len)) ++nsent;
     }
     return nsent;
 }
 
+static sl_sock_hresult_e parse_post_data(sl_sock_t *c, char *str);
+
+// return TRUE if this is header without data (also modify c->sockmethod)
+static int iswebheader(sl_sock_t *client, char *str){
+    DBG("check header: _%s_", str);
+    const char *methods[] = {
+        [SOCKM_GET] = "GET",
+        [SOCKM_PUT] = "PUT",
+        [SOCKM_POST] = "POST",
+        [SOCKM_PATCH] = "PATCH",
+        [SOCKM_DELETE] = "DELETE"
+    };
+    const int metlengths[] = {
+        [SOCKM_GET] = 3,
+        [SOCKM_PUT] = 3,
+        [SOCKM_POST] = 4,
+        [SOCKM_PATCH] = 5,
+        [SOCKM_DELETE] = 6
+    };
+    for(sl_sockmethod_e m = SOCKM_GET; m < SOCKM_AMOUNT; ++m){
+        if(0 == strncmp(str, methods[m], metlengths[m])){
+            client->sockmethod = m;
+            DBG("SOCK method: %s", methods[m]);
+            if(m == SOCKM_GET){ // modify `str` by GET
+                char *slash = strchr(str, '/');
+                if(slash){
+                    char *eol = strstr(slash, "HTTP");
+                    if(eol){ // move to `str` head
+                        size_t l = eol - slash - 2;
+                        memmove(str, slash+1, l);
+                        str[l] = 0;
+                        DBG("User asks GET '%s' -> run parser", str);
+                        //parse_post_data(client, str);
+                        return TRUE;
+                    }
+                }
+            }
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static char *stringscan(char *str, char *needle){
+    char *a, *end = str + strlen(str);
+    a = strstr(str, needle);
+    if(!a) return NULL;
+    a += strlen(needle);
+    while (a < end && isspace(*a)) a++;
+    if(a >= end) return NULL;
+    DBG("Found a needle \"%s\"", needle);
+    return a;
+}
+
+// just check for header words - if so, return TRUE
+static int chkwebreq(sl_sock_t *client, char *str){
+    if(client->contlen == 0){
+        char *cl = stringscan(str, "Content-Length:");
+        if(cl){
+            DBG("Contlen: _%s_", cl);
+            sl_str2i(&client->contlen, cl);
+            return TRUE;
+        }
+    }
+    DBG("retval: %d", !client->gotemptyline);
+    return !client->gotemptyline;
+}
+
+// In-place URL parser
+void url_decode(char *str) {
+    if (!str) return;
+    char *src = str;
+    char *dst = str;
+    char hex[3] = {0};
+    DBG("STR ori: _%s_", str);
+    while(*src){
+        if(*src == '+'){
+            *dst++ = ' ';
+            src++;
+        }else if(*src == '%' && isxdigit((unsigned char)src[1]) && isxdigit((unsigned char)src[2])){
+            hex[0] = src[1];
+            hex[1] = src[2];
+            *dst++ = (char)strtol(hex, NULL, 16);
+            src += 3;
+        }else{
+            *dst++ = *src++;
+        }
+    }
+    *dst = 0;
+    DBG("STR DECODED to _%s_", str);
+}
+
+static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str);
+
+// parser of web-encoded data by POST/GET:
+static sl_sock_hresult_e parse_post_data(sl_sock_t *c, char *str){
+    if (!c || !str) return RESULT_BADKEY;
+    if(0 == strcmp("favicon.ico", str)){
+        DBG("icon -> omit");
+        return RESULT_SILENCE;
+    }
+    char *start = str;
+    char *current = str;
+    DBG("\n\n\nSTART parser");
+    while(*current){
+        if(*current == '&'){
+            *current = '\0';
+            DBG("\n\n`start` = _%s_", start);
+            url_decode(start);
+            sl_sock_hresult_e r = msgparser(c, start);
+            if(r != RESULT_SILENCE) sl_sock_sendstrmessage(c, sl_sock_hresult2str(r));
+            start = current + 1;
+        }
+        current++;
+    }
+    if(*start){
+        url_decode(start);
+        sl_sock_hresult_e r = msgparser(c, start);
+        if(r != RESULT_SILENCE) sl_sock_sendstrmessage(c, sl_sock_hresult2str(r));
+    }
+    DBG("\n\n\nEND parser");
+    return RESULT_SILENCE;
+}
+
 // parser of client's message
+// "only-server's" fields of `client` are copies of server's
 static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
     char key[SL_KEY_LEN], val[SL_VAL_LEN], *valptr;
     if(!str || !*str) return RESULT_BADKEY;
+    // check web headers and fields
+    DBG("\n\nLINENO: %lu", client->lineno);
+    if(client->lineno == 0){ // first data line from client -> check if it's a header
+        if(iswebheader(client, str)){
+            if(client->sockmethod == SOCKM_GET)
+                return parse_post_data(client, str);
+            return RESULT_SILENCE;
+        }
+    }else if(client->sockmethod != SOCKM_RAW){
+        if(chkwebreq(client, str)) return RESULT_SILENCE;
+    }
+    if(!client->handlers){ // have only default handler
+        if(!client->defmsg_handler) return RESULT_BADKEY;
+        return client->defmsg_handler(client, str);
+    }
     int N = sl_get_keyval(str, key, val);
     DBG("getval=%d, key=%s, val=%s", N, key, val);
-    if(N == 0) return RESULT_BADKEY;
+    if(N == 0){
+        if(client->defmsg_handler) return client->defmsg_handler(client, str);
+        return RESULT_BADKEY;
+    }
     if(N == 1) valptr = NULL;
     else valptr = val;
     if(0 == strcmp(key, "help")){
@@ -209,7 +349,29 @@ static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
         if(strcmp(h->key, key)) continue;
         return h->handler(client, h, valptr);
     }
+    if(client->defmsg_handler) return client->defmsg_handler(client, str);
     return RESULT_BADKEY;
+}
+
+// send http responce with data in c->outbuffer
+static void send_http_response(sl_sock_t* c){
+    if(c->sockmethod == SOCKM_RAW) return;
+    DBG("Send to client HTTP response");
+    c->sockmethod = SOCKM_RAW; // dirty hack to send data by sl_sock_sendbinmessage
+    char tbuf[BUFSIZ];
+    ssize_t L = snprintf(tbuf, BUFSIZ-1,
+         "HTTP/2.0 200 OK\r\n"
+         "Access-Control-Allow-Origin: *\r\n"
+         "Access-Control-Allow-Methods: GET, POST\r\n"
+         "Access-Control-Allow-Credentials: true\r\n"
+         "Content-type: text/plain\r\nContent-Length: %zd\r\n\r\n", c->outplen);
+    if(L < 0){
+        WARN("sprintf()");
+        LOGWARN("sprintf()");
+        return;
+    }
+    if(L != sl_sock_sendbinmessage(c, (uint8_t*)tbuf, L)) return;
+    if(c->outplen != (size_t)sl_sock_sendbinmessage(c, (uint8_t*)c->outbuffer, c->outplen)) return;
 }
 
 /**
@@ -219,43 +381,50 @@ static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
  */
 static void *serverthread(void _U_ *d){
     sl_sock_t *s = (sl_sock_t*) d;
-    if(!s || !s->handlers){
+    if(!s || (!s->handlers && !s->defmsg_handler)){
         WARNX(_("Can't start server handlers thread"));
         goto errex;
     }
     int sockfd = s->fd;
-    if(listen(sockfd, maxclients) == -1){
+    if(listen(sockfd, s->maxclients) == -1){
         WARN("listen");
         goto errex;
     }
     DBG("Start server handlers thread");
     int nfd = 1; // only one socket @start
-    struct pollfd *poll_set = MALLOC(struct pollfd, maxclients+1);
-    clients = MALLOC(sl_sock_t*, maxclients+1);
+    struct pollfd *poll_set = MALLOC(struct pollfd, s->maxclients+1);
+    sl_sock_t **clients = MALLOC(sl_sock_t*, s->maxclients+1);
+    s->clients = clients;
     // init default clients records
-    for(int i = maxclients; i > 0; --i){
+    for(int i = s->maxclients; i > 0; --i){
         DBG("fill %dth client info", i);
         clients[i] = MALLOC(sl_sock_t, 1);
         sl_sock_t *c = clients[i];
         c->type = s->type;
         if(s->node) c->node = strdup(s->node);
         if(s->service) c->service = strdup(s->service);
-        c->handlers = s->handlers;
         // fill addrinfo
         c->addrinfo = MALLOC(struct addrinfo, 1);
         c->addrinfo->ai_addr = MALLOC(struct sockaddr, 1);
+        // copy server data: we have no `self`, so use so
+        c->handlers = s->handlers;
+        c->defmsg_handler = s->defmsg_handler;
     }
     // ZERO - listening server socket
     poll_set[0].fd = sockfd;
     poll_set[0].events = POLLIN;
     // disconnect client
     void disconnect_(sl_sock_t *c, int N){
-        DBG("client \"%s\" (fd=%d) disconnected", c->IP, c->fd);
-        if(disconnect_handler) disconnect_handler(c);
+        DBG("Disconnect client \"%s\" (fd=%d)", c->IP, c->fd);
+        if(s->disconnect_handler) s->disconnect_handler(c);
+        if(c->sockmethod != SOCKM_RAW) send_http_response(c); // we are closing HTTP request - send headers and answer
         pthread_mutex_lock(&c->mutex);
         DBG("close fd %d", c->fd);
         c->connected = 0;
         close(c->fd);
+        c->outplen = 0;
+        c->lineno = 0;
+        c->gotemptyline = 0;
         sl_RB_clearbuf(c->buffer);
         // now move all data of last client to disconnected
         if(nfd > 2 && N != nfd - 1){ // don't move the only or the last
@@ -281,9 +450,9 @@ static void *serverthread(void _U_ *d){
             socklen_t len = sizeof(struct sockaddr);
             int client = accept(sockfd, &a, &len);
             DBG("New connection, nfd=%d, len=%d", nfd, len);
-            if(nfd == maxclients + 1){
+            if(nfd == s->maxclients + 1){
                 WARNX(_("Limit of connections reached"));
-                if(toomuch_handler) toomuch_handler(client);
+                if(s->toomuch_handler) s->toomuch_handler(client);
                 close(client);
             }else{
                 memset(&poll_set[nfd], 0, sizeof(struct pollfd));
@@ -302,12 +471,16 @@ static void *serverthread(void _U_ *d){
                     *c->IP = 0;
                 }
                 DBG("got IP:%s", c->IP);
-                if(newconnect_handler) newconnect_handler(c);
-                if(!c->buffer){ // allocate memory for client's ringbuffer
-                    DBG("allocate ringbuffer");
-                    c->buffer = sl_RB_new(s->buffer->length); // the same size as for master
-                }
                 ++nfd;
+                if(s->newconnect_handler && s->newconnect_handler(c) == FALSE){
+                    DBG("Client %s rejected", c->IP);
+                    disconnect_(c, nfd);
+                }else{
+                    if(!c->buffer){ // allocate memory for client's ringbuffer
+                        DBG("allocate ringbuffer");
+                        c->buffer = sl_RB_new(s->buffer->length); // the same size as for master
+                    }
+                }
             }
         }
         // scan connections
@@ -323,6 +496,7 @@ static void *serverthread(void _U_ *d){
                 // check for RB overflow
                 if(sl_RB_hasbyte(c->buffer, '\n') < 0){ // -1 - buffer empty (can't be), -2 - buffer overflow
                     WARNX(_("Server thread: ring buffer overflow for fd=%d"), fd);
+                    LOGERR(_("Server thread: ring buffer overflow for fd=%d"), fd);
                     disconnect_(c, fdidx);
                     --fdidx;
                 }
@@ -352,15 +526,39 @@ static void *serverthread(void _U_ *d){
                 disconnect_(c, fdidx);
                 --fdidx;
                 continue;
-            }else if(got == 0) continue;
-            sl_sock_hresult_e r = msgparser(c, (char*)buf);
-            if(r != RESULT_SILENCE) sl_sock_sendstrmessage(c, sl_sock_hresult2str(r));
+            }else if(got == 0){ // check last data in POST/GET methods
+                if(c->sockmethod == SOCKM_RAW) continue;
+                size_t l = sl_RB_datalen(c->buffer);
+                if(c->sockmethod == SOCKM_POST){
+                    if(l != (size_t)c->contlen) continue; // wait for last data
+                    if(l < bufsize - 1){
+                        sl_RB_read(c->buffer, buf, l);
+                        buf[l] = 0;
+                        parse_post_data(c, (char*)buf);
+                    }
+                }
+                disconnect_(c, fdidx);
+                --fdidx;
+                continue;
+            }
+            if(got > 1 && *buf && *buf != '\r'){ // not empty line
+                if(buf[got-2] == '\r'){
+                    buf[got-2] = 0; // omit '\r' for "\r\n"
+                    DBG("delete \\r: _%s_", buf);
+                }
+                sl_sock_hresult_e r = msgparser(c, (char*)buf);
+                if(r != RESULT_SILENCE) sl_sock_sendstrmessage(c, sl_sock_hresult2str(r));
+            }else{
+                DBG("EMPTY line");
+                if(c->sockmethod != SOCKM_RAW) c->gotemptyline = TRUE;
+            }
+            ++c->lineno;
         }
     }
     // clear memory
     FREE(buf);
     FREE(poll_set);
-    for(int i = maxclients; i > 0; --i){
+    for(int i = s->maxclients; i > 0; --i){
         DBG("Clear %dth client data", i);
         sl_sock_t *c = clients[i];
         if(c->fd > -1) close(c->fd);
@@ -372,6 +570,7 @@ static void *serverthread(void _U_ *d){
         FREE(c);
     }
     FREE(clients);
+    s->clients = NULL;
 errex:
     s->rthread = 0;
     return NULL;
@@ -420,11 +619,14 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
     sl_sock_t *s = MALLOC(sl_sock_t, 1);
     s->type = type;
     s->fd = -1;
+    s->maxclients = SL_DEF_MAXCLIENTS;
     s->handlers = handlers;
     s->buffer = sl_RB_new(bufsiz);
-    if(!s->buffer) sl_sock_delete(&s);
-    else{ // fill node/service
-        if(type == SOCKT_UNIX) s->node = str; // str now is converted path
+    if(!s->buffer){
+        sl_sock_delete(&s);
+        return NULL;
+    }else{ // fill node/service
+        if(type == SOCKT_UNIX) s->node = strdup(str); // str now is converted path
         else{
             char *delim = strchr(path, ':');
             if(!delim) s->service = strdup(path); // only port
@@ -444,13 +646,19 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
     // now try to open socket
     if(type != SOCKT_UNIX){
         DBG("try to get addrinfo for node '%s' and service '%s'", s->node, s->service);
-        char *node = s->node;
         if(isserver){
-            if(s->type == SOCKT_NET) node = NULL; // common net server -> node==NULL
-            else node = "127.0.0.1"; // localhost
+            if(!s->node){
+                DBG("Socket type now is SOCKT_NET");
+                s->type = SOCKT_NET;
+            }
+            if(s->type == SOCKT_NETLOCAL){
+                DBG("SOCKT_NETLOCAL: change `node` to localhost");
+                FREE(s->node);
+                s->node = strdup("127.0.0.1");  // localhost
+            }
         }
-        DBG("---> node '%s', service '%s'", node, s->service);
-        int e = getaddrinfo(node, s->service, &ai, &res);
+        DBG("---> node '%s', service '%s'", s->node, s->service);
+        int e = getaddrinfo(s->node, s->service, &ai, &res);
         if(e){
             WARNX("getaddrinfo(): %s", gai_strerror(e));
             sl_sock_delete(&s);
@@ -491,7 +699,7 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
         DBG("s->fd=%d, node=%s, service=%s", s->fd, s->node, s->service);
         int r = -1;
         if(isserver){
-            if(s->handlers)
+            if(s->handlers || s->defmsg_handler)
                 r = pthread_create(&s->rthread, NULL, serverthread, (void*)s);
             else r = 0;
         }else{
@@ -543,6 +751,15 @@ sl_sock_t *sl_sock_run_server(sl_socktype_e type, const char *path, int bufsiz, 
  */
 ssize_t sl_sock_sendbinmessage(sl_sock_t *socket, const uint8_t *msg, size_t l){
     if(!msg || l < 1) return -1;
+    if(socket->sockmethod != SOCKM_RAW){ // just fill buffer while socket isn't marked as "RAW"
+        DBG("Put to buffer: _%s_", (char*)msg);
+        size_t L = BUFSIZ - socket->outplen;
+        if(l > L) l = L;
+        memcpy(socket->outbuffer + socket->outplen, msg, l);
+        socket->outplen += l;
+        DBG("Now buflen=%zd, buf: ```%s```", socket->outplen, socket->outbuffer);
+        return l;
+    }
     DBG("send to fd=%d message with len=%zd (%s)", socket->fd, l, msg);
     while(socket && socket->connected && !sl_canwrite(socket->fd));
     if(!socket || !socket->connected) return -1;
@@ -578,6 +795,13 @@ ssize_t sl_sock_sendstrmessage(sl_sock_t *socket, const char *msg){
 ssize_t sl_sock_sendbyte(sl_sock_t *socket, uint8_t byte){
     while(socket && socket->connected && !sl_canwrite(socket->fd));
     if(!socket || !socket->connected) return -1;
+    if(socket->sockmethod != SOCKM_RAW){ // just fill buffer while socket isn't marked as "RAW"
+        DBG("Put to buffer: _%c_", (char)byte);
+        if(socket->outplen == BUFSIZ) return 0;
+        socket->outbuffer[socket->outplen++] = (char)byte;
+        DBG("Now buflen=%zd, buf: ```%s```", socket->outplen, socket->outbuffer);
+        return 1;
+    }
     DBG("lock");
     pthread_mutex_lock(&socket->mutex);
     ssize_t r = send(socket->fd, &byte, 1, MSG_NOSIGNAL);

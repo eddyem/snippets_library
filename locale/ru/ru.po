@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2024-12-13 09:10+0300\n"
+        "POT-Creation-Date: 2025-06-27 11:49+0300\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -85,7 +85,7 @@ msgstr  "Не могу сменить скорость на %d; ispeed=%d, ospeed=%d"
 msgid   "Can't setup console"
 msgstr  "Не могу настроить консоль"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:223
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:390
 msgid   "Can't start server handlers thread"
 msgstr  "Не могу запустить поток-обработчик сервера"
 
@@ -117,7 +117,7 @@ msgstr  "У ключа '%s' нет указателя на переменную!"
 msgid   "Key '%s' need value"
 msgstr  "Ключ '%s' требует значения"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:285
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:459
 msgid   "Limit of connections reached"
 msgstr  "Достигнут предел соединений"
 
@@ -146,20 +146,27 @@ msgstr  "Число за пределами int"
 msgid   "Port name is missing"
 msgstr  "Отсутствует имя порта"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:148
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:147
 msgid   "Server disconnected"
 msgstr  "Сервер отключен"
 
 #. buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:351
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:530
+#, c-format
 msgid   "Server thread: buffer overflow from fd=%d"
 msgstr  "Поток сервера: переполнение буфера от fd=%d"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:339
-msgid   "Server thread: can't write data to ringbuffer, overflow from fd=%d"
-msgstr  "Поток сервера: не могу сохранить данные в кольцевом буфере, переполнение от fd=%d"
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:518
+#, fuzzy, c-format
+msgid   "Server thread: can't write data to ringbuffer: overflow from fd=%d"
+msgstr  "Поток сервера: не могу сохранить данные в кольцевом буфере, "
+        "переполнение от fd=%d"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:325
+#. check for RB overflow
+#. -1 - buffer empty (can't be), -2 - buffer overflow
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:503
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:504
+#, c-format
 msgid   "Server thread: ring buffer overflow for fd=%d"
 msgstr  "Поток сервера: переполнение буфера от fd=%d"
 
@@ -168,7 +175,7 @@ msgid   "Unsupported option type"
 msgstr  "Неподдерживаемый тип опции"
 
 #. never reached
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:416
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:620
 #, c-format
 msgid   "Unsupported socket type %d"
 msgstr  "Неподдерживаемый тип сокета %d"

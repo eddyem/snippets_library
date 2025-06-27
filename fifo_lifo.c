@@ -24,7 +24,7 @@
 /**
  * @brief sl_list_push_tail - push data into the tail of a stack (like FIFO)
  * @param lst (io) - list
- * @param v (i)    - data to push
+ * @param v (i)    - data to push (DON'T FREE it after this function as it would be just a link to original!)
  * @return pointer to just pused node or NULL in case of error
  */
 sl_list_t *sl_list_push_tail(sl_list_t **lst, void *v){

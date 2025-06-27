@@ -25,7 +25,7 @@
 int main(int argc, char *argv[argc]) {
     sl_list_t *f = NULL;
     printf("Available memory: %luMB\n", sl_mem_avail()/1024/1024);
-    //initial_setup(); - there's no need for this function if you don't use locale & don't want to have
+    sl_init();
     // specific output in non-tty
     if(argc == 1){
         green("Usage:\n\t%s args - fill fifo with arguments\n", __progname);
@@ -55,7 +55,6 @@ int main(int argc, char *argv[argc]) {
         d = sl_list_pop(&f);
         green("pull: ");
         printf("%s\n", d);
-        // after last usage we should FREE data, but here it is parameter of main()
     }
     return 0;
 }
