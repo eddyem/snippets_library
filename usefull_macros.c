@@ -400,7 +400,7 @@ int sl_str2d(double *num, const char *str){
     if(!str) return FALSE;
     res = strtod(str, &endptr);
     if(endptr == str || *str == '\0' || *endptr != '\0'){
-        WARNX(_("Wrong double number format '%s'"), str);
+        //WARNX(_("Wrong double number format '%s'"), str);
         return FALSE;
     }
     if(num) *num = res; // you may run it like myatod(NULL, str) to test wether str is double number
@@ -413,7 +413,7 @@ int sl_str2ll(long long *num, const char *str){
     if(!str) return FALSE;
     res = strtoll(str, &endptr, 0);
     if(endptr == str || *str == '\0' || *endptr != '\0'){
-        WARNX(_("Wrong integer number format '%s'"));
+        //WARNX(_("Wrong integer number format '%s'"));
         return FALSE;
     }
     if(num) *num = res;
@@ -425,11 +425,11 @@ int sl_str2i(int *num, const char *str){
     if(!str) return FALSE;
     res = strtoll(str, &endptr, 0);
     if(endptr == str || *str == '\0' || *endptr != '\0'){
-        WARNX(_("Wrong integer number format '%s'"));
+        //WARNX(_("Wrong integer number format '%s'"));
         return FALSE;
     }
     if(res > INT_MAX || res < INT_MIN){
-        WARNX(_("Number out of integer limits"));
+        //WARNX(_("Number out of integer limits"));
         return FALSE;
     }
     if(num) *num = (int)res;
