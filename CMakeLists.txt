@@ -110,7 +110,7 @@ add_definitions(-DLOCALEDIR=\"${LOCALEDIR}\"
         -DMAJOR_VERSION=\"${MAJOR_VESION}\")
 
 # -l
-target_link_libraries(${PROJ} ${${PROJ}_LIBRARIES})
+target_link_libraries(${PROJ} ${${PROJ}_LIBRARIES} -lm)
 
 set(PCFILE "${CMAKE_BINARY_DIR}/${PROJ}.pc")
 configure_file("${PROJ}.pc.in" ${PCFILE} @ONLY)
@@ -154,7 +154,7 @@ if(NOT DEFINED NOGETTEXT)
         # we need this to prevent ru.po & .mo from deleting by make clean
         add_custom_target(
             RU_FILE
-            COMMAND [ -f ${RU_FILE} ] && ${GETTEXT_MSGMERGE_EXECUTABLE} -Uis ${RU_FILE} ${PO_FILE} || cp ${PO_FILE} ${RU_FILE}
+            COMMAND [ -f ${RU_FILE} ] && ${GETTEXT_MSGMERGE_EXECUTABLE} -UiF ${RU_FILE} ${PO_FILE} || cp ${PO_FILE} ${RU_FILE}
             DEPENDS ${PO_FILE} ${SOURCES}
         )
         add_custom_target(

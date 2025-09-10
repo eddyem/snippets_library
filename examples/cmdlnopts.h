@@ -38,6 +38,8 @@ typedef struct{
     int lo0;                // only long options
     int lo1;
     int lo2;
+    char *so1;              // only short options
+    char *so2;
     int rest_pars_num;      // number of rest parameters
     char** rest_pars;       // the rest parameters: array of char*
 } glob_pars;

@@ -23,12 +23,10 @@
 #include "usefull_macros.h"
 
 typedef struct{
-    char *sp1;
-    char *sp2;
+    char **sp;
     int ip1;
     int ip2;
-    double dp1;
-    double dp2;
+    double **dp;
     float fp1;
     float fp2;
     int help;
@@ -36,65 +34,93 @@ typedef struct{
     char *confname;
 } parameters;
 
-static parameters G = {
+static parameters G, parini = {
     .ip1 = INT_MIN,
     .ip2 = INT_MIN,
-    .dp1 = NAN,
-    .dp2 = NAN,
     .fp1 = NAN,
     .fp2 = NAN
 };
 
+#define CONFOPTS \
+    {"string",      MULT_PAR,   NULL,   's',    arg_string, APTR(&G.sp),    "string array"}, \
+    {"int1",        NEED_ARG,   NULL,   'i',    arg_int,    APTR(&G.ip1),   "integer one"}, \
+    {"int2",        NEED_ARG,   NULL,   'u',    arg_int,    APTR(&G.ip2),   "integer two"}, \
+    {"double",      MULT_PAR,   NULL,   'd',    arg_double, APTR(&G.dp),    "double array"}, \
+    {"float1",      NEED_ARG,   NULL,   'f',    arg_float,  APTR(&G.fp1),   "float one"}, \
+    {"float2",      NEED_ARG,   NULL,   'l',    arg_float,  APTR(&G.fp2),   "float two"}, \
+    {"verbose",     NO_ARGS,    NULL,   'v',    arg_none,   APTR(&G.verbose),"verbose level (each -v adds 1)"},
+
 static sl_option_t cmdlnopts[] = {
     {"help",        NO_ARGS,    NULL,   'h',    arg_int,    APTR(&G.help),  "show this help"},
-    {"string1",     NEED_ARG,   NULL,   's',    arg_string, APTR(&G.sp1),   "string one"},
-    {"string2",     NEED_ARG,   NULL,   'c',    arg_string, APTR(&G.sp2),   "string two"},
-    {"int1",        NEED_ARG,   NULL,   'i',    arg_int,    APTR(&G.ip1),   "integer one"},
-    {"int2",        NEED_ARG,   NULL,   'u',    arg_int,    APTR(&G.ip2),   "integer two"},
-    {"double1",     NEED_ARG,   NULL,   'd',    arg_double, APTR(&G.dp1),   "double one"},
-    {"double2",     NEED_ARG,   NULL,   'o',    arg_double, APTR(&G.dp2),   "double two"},
-    {"float1",      NEED_ARG,   NULL,   'f',    arg_float,  APTR(&G.fp1),   "float one"},
-    {"float2",      NEED_ARG,   NULL,   'l',    arg_float,  APTR(&G.fp2),   "float two"},
+    CONFOPTS
     {"config",      NEED_ARG,   NULL,   'C',    arg_string, APTR(&G.confname),"name of configuration file"},
-    {"verbose",     NO_ARGS,    NULL,   'v',    arg_none,   APTR(&G.verbose),"verbose level (each -v adds 1)"},
+    end_option
+};
+// config options - without some unneed
+static sl_option_t confopts[] = {
+    CONFOPTS
     end_option
 };
 
-
 int main(int argc, char **argv){
     sl_init();
+    G = parini;
     sl_parseargs(&argc, &argv, cmdlnopts);
     if(G.help) sl_showhelp(-1, cmdlnopts);
+    // if you will end main options with '--', you can write some additional options after and again run sl_parseargs with other sl_option_t array
+    if(argc) for(int i = 0; i < argc; ++i){
+        red("Extra arg: `%s`\n", argv[i]);
+    }
     sl_loglevel_e lvl = G.verbose + LOGLEVEL_ERR;
     if(lvl >= LOGLEVEL_AMOUNT) lvl = LOGLEVEL_AMOUNT - 1;
     printf("verbose level: %d\n", lvl);
-    if(G.sp1){
-        printf("Parsing of string1: ");
-        char key[SL_KEY_LEN], val[SL_VAL_LEN];
-        int k = sl_get_keyval(G.sp1, key, val);
-        switch(k){
-            case 0:
-                red("key not found\n");
-            break;
-            case 1:
-                green("got key='%s'\n", key);
-            break;
-            default:
-                green("got key='%s', value='%s'\n", key, val);
+    if(G.sp){
+        char **s = G.sp;
+        while(*s){
+            printf("Parsing of string: ");
+            char key[SL_KEY_LEN], val[SL_VAL_LEN];
+            int k = sl_get_keyval(*s, key, val);
+            switch(k){
+                case 0:
+                    red("key not found\n");
+                break;
+                case 1:
+                    green("got key='%s'\n", key);
+                break;
+                default:
+                    green("got key='%s', value='%s'\n", key, val);
+            }
+            ++s;
         }
     }
     green("Starting parameters values:\n");
     char *buf = sl_print_opts(cmdlnopts, TRUE);
     printf("%s\n", buf);
-    FREE(buf);
+    FREE(buf); // don't forget to `free` this buffer
     if(G.confname){
-        int o = sl_conf_readopts(G.confname, cmdlnopts);
+        const char *confname = G.confname;
+        G = parini;
+        printf("now v=%d\n", G.verbose);
+        int o = sl_conf_readopts(confname, confopts);
         if(o > 0){
-            printf("got %d options in '%s'\n", o, G.confname);
+            printf("got %d options in '%s'\n", o, confname);
             green("And after reading of conffile:\n");
-            buf = sl_print_opts(cmdlnopts, TRUE);
+            buf = sl_print_opts(confopts, TRUE);
             printf("%s\n", buf);
             FREE(buf);
+        }
+        // if we want to re-read conffile many times over program runs, don't forget to `free` old arrays like this:
+        if(G.dp){
+            DBG("Clear double array");
+            double **p = G.dp;
+            while(*p){ FREE(*p); ++p; }
+            FREE(G.dp);
+        }
+        if(G.sp){
+            DBG("Clear string array %s", *G.sp);
+            char **s = G.sp;
+            while(*s){ FREE(*s); ++s; }
+            FREE(G.sp);
         }
     }
     return 0;

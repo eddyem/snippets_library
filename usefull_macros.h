@@ -326,6 +326,7 @@ typedef struct{
 extern const char *__progname;
 
 void sl_showhelp(int oindex, sl_option_t *options);
+void sl_parseargs_hf(int *argc, char ***argv, sl_option_t *options, void (*helpfun)(int, sl_option_t*));
 void sl_parseargs(int *argc, char ***argv, sl_option_t *options);
 /**
  * @brief sl_helpstring - change standard help header
@@ -374,16 +375,18 @@ void *sl_list_pop(sl_list_t **lst);
 #define SL_COMMENT_CHAR '#'
 
 // option or simple configuration value (don't work for functions)
-typedef struct{
+/*typedef struct{
     union{
         int ival; long long llval; double dval; float fval;
     };
     sl_argtype_e type;
-} sl_optval;
+} sl_optval;*/
 
 int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]);
 char *sl_print_opts(sl_option_t *opt, int showall);
 int sl_conf_readopts(const char *filename, sl_option_t *options);
+void sl_conf_showhelp(int idx, sl_option_t *options);
+int sl_remove_quotes(char *string);
 
 /******************************************************************************\
                          The original ringbuffer.h

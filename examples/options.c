@@ -67,12 +67,6 @@ int main(int argc, char *argv[]){
     }
     sl_check4running((char*)__progname, GP->pidfile);
     red("%s started, snippets library version is %s\n", __progname, sl_libversion());
-    sl_setup_con();
-    signal(SIGTERM, signals); // kill (-15) - quit
-    signal(SIGHUP, SIG_IGN);  // hup - ignore
-    signal(SIGINT, signals);  // ctrl+C - quit
-    signal(SIGQUIT, signals); // ctrl+\ - quit
-    signal(SIGTSTP, SIG_IGN); // ignore ctrl+Z
     if(GP->logfile) OPENLOG(GP->logfile, LOGLEVEL_ANY, 1);
     LOGMSG("Start application...");
     if(GP->rest_pars_num){
@@ -89,11 +83,22 @@ int main(int argc, char *argv[]){
     }
     if(GP->strarr){
         char **p = GP->strarr;
-        for(int i = 0; *p; ++i) printf("String[%d]: \"%s\"\n", i, *p++);
+        for(int i = 0; *p; ++i){
+            sl_remove_quotes(*p);
+            printf("String[%d]: \"%s\"\n", i, *p++);
+        }
     }
     if(GP->lo0 != INT_MIN) printf("You set lo0 to %d\n", GP->lo0);
     if(GP->lo1 != INT_MIN) printf("You set lo1 to %d\n", GP->lo1);
     if(GP->lo2 != INT_MIN) printf("You set lo2 to %d\n", GP->lo2);
+    if(GP->so1){
+        sl_remove_quotes(GP->so1);
+        printf("String so1=%s\n", GP->so1);
+    }
+    if(GP->so2){
+        sl_remove_quotes(GP->so2);
+        printf("String so2=%s\n", GP->so2);
+    }
     if(GP->device){
         LOGDBG("Try to open serial %s", GP->device);
         dev = sl_tty_new(GP->device, GP->speed, 4096);
@@ -103,7 +108,13 @@ int main(int argc, char *argv[]){
             signals(0);
         }
     }
-
+    if(!dev) return 0;
+    sl_setup_con();
+    signal(SIGTERM, signals); // kill (-15) - quit
+    signal(SIGHUP, SIG_IGN);  // hup - ignore
+    signal(SIGINT, signals);  // ctrl+C - quit
+    signal(SIGQUIT, signals); // ctrl+\ - quit
+    signal(SIGTSTP, SIG_IGN); // ignore ctrl+Z
     // main stuff goes here
     long seed = sl_random_seed();
     green("Now I will sleep for 10 seconds after your last input.\n Do whatever you want. Random seed: %ld\n", seed);

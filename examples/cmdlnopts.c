@@ -50,22 +50,28 @@ static glob_pars const Gdefault = {
 /*
  * Define command line options by filling structure:
  *  name        has_arg     flag    val     type        argptr              help
+ *  BE carefull! The `help` field is mandatory! Omitting it equivalent of 'end_option'
 */
 static sl_option_t cmdlnopts[] = {
-    {"lo0",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo0),       _("only long arg 0")},
+    // short option in only-long options should be zeroed, or you can add flag to set it to given value
+    {"lo0",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo0),       _("only long arg 0 (int)")},
+    // for short-only options long option can be NULL
+    {NULL,      NEED_ARG,   NULL,   '0',    arg_string, APTR(&G.so1),       _("only short arg 1 (string)")},
+    // if you change `arg_int` to `arg_none`, value will be incremented each `-h`
     {"help",    NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
-//    {"dup",		NO_ARGS,    NULL,   'h',    arg_int,    APTR(&help),        _("show this help")},
     {"device",  NEED_ARG,   NULL,   'd',    arg_string, APTR(&G.device),    _("serial device name")},
-    {"lo2",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo2),       _("only long arg 2")},
+    // for short-only options long option can also be an empty string
+    {"",        NEED_ARG,   NULL,   '1',    arg_string, APTR(&G.so2),       _("only short arg 2 (string)")},
+    {"lo2",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo2),       _("only long arg 2 (int)")},
     {"speed",   NEED_ARG,   NULL,   's',    arg_int,    APTR(&G.speed),     _("serial device speed (default: 9600)")},
     {"logfile", NEED_ARG,   NULL,   'l',    arg_string, APTR(&G.logfile),   _("file to save logs")},
     {"pidfile", NEED_ARG,   NULL,   'P',    arg_string, APTR(&G.pidfile),   _("pidfile (default: " DEFAULT_PIDFILE ")")},
     {"exclusive",NO_ARGS,   NULL,   'e',    arg_int,    APTR(&G.exclusive), _("open serial device exclusively")},
     // example of multiple options
-    {"Int",     MULT_PAR,   NULL,   'I',    arg_int,    APTR(&G.intarr),    _("integer multiplying parameter")},
-    {"Dbl",     MULT_PAR,   NULL,   'D',    arg_double, APTR(&G.dblarr),    _("double multiplying parameter")},
-    {"Str",     MULT_PAR,   NULL,   'S',    arg_string, APTR(&G.strarr),    _("string multiplying parameter")},
-    {"lo1",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo1),       _("only long arg 1")},
+    {"Int",     MULT_PAR,   NULL,   'I',    arg_int,    APTR(&G.intarr),    _("integer parameter")},
+    {"Dbl",     MULT_PAR,   NULL,   'D',    arg_double, APTR(&G.dblarr),    _("double parameter")},
+    {"Str",     MULT_PAR,   NULL,   'S',    arg_string, APTR(&G.strarr),    _("string parameter")},
+    {"lo1",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo1),       _("only long arg 1 (int)")},
     end_option
 };
 

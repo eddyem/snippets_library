@@ -25,6 +25,28 @@
 #include "usefull_macros.h"
 
 /**
+ * @brief sl_remove_quotes - remove all outern quotes - starting and trailng " and '
+ * @param (io) string to modify (if quotes found rest of string will be moved to head, tail will be zeroed)
+ * @return amount of quotation pair found
+ */
+int sl_remove_quotes(char *string){
+    if(!string) return 0;
+    int l = strlen(string);
+    if(l < 2) return 0;
+    int nq = 0, half = l/2;
+    for(; nq < half; ++nq){
+        char _1st = string[nq];
+        if(_1st != string[l-1-nq]) break;
+        if(_1st != '\'' && _1st != '"') break;
+    }
+    if(nq == 0) return 0;
+    l -= 2 * nq;
+    memmove(string, string + nq, l);
+    string[l] = 0;
+    return nq;
+}
+
+/**
  * @brief sl_get_keyval - get key name and its value from string pair
  * @param pair - empty string, `key = value` or just `key`
  * @param key - substring with `key`
@@ -66,6 +88,7 @@ int sl_get_keyval(const char *pair, char key[SL_KEY_LEN], char value[SL_VAL_LEN]
     for(; kend < eq && !isspace(*kend); ++kend);
     size_t l = SL_KEY_LEN - 1;
     if(l > (size_t)(kend - kstart)) l = kend - kstart;
+    else if(l < (size_t)(kend - kstart)) WARNX(_("sl_get_keyval(): key would be trunkated to %d symbols"), l);
     //DBG("kend=%c, kstart=%c, l=%zd", *kend, *kstart, l);
     strncpy(key, kstart, l);
     key[l] = 0;
@@ -90,13 +113,74 @@ static int read_key(FILE *file, char key[SL_KEY_LEN], char value[SL_VAL_LEN]){
     return r;
 }
 
-// search `opt` record for given `key`
-static sl_option_t *opt_search(const char *key, sl_option_t *options){
-    while(options->name){
-        if(0 == strcmp(key, options->name)) return options;
-        ++options;
+// print option value
+static size_t pr_val(sl_argtype_e type, void *argptr, char **buffer, size_t *buflen, size_t pos){
+    size_t maxlen = *buflen - pos - 1;
+    char *buf = *buffer + pos;
+    switch(type){
+        case arg_none:
+        case arg_int:
+            DBG("int %d", *(int*) argptr);
+            return snprintf(buf, maxlen, "%d", *(int*) argptr);
+        case arg_longlong:
+            DBG("long long %lld", *(long long*) argptr);
+            return snprintf(buf, maxlen, "%lld", *(long long*)argptr);
+        case arg_float:
+            DBG("float %g", *(float*) argptr);
+            return snprintf(buf, maxlen, "%g", *(float*) argptr);
+        case arg_double:
+            DBG("double %g", *(double*) argptr);
+            return snprintf(buf, maxlen, "%g", *(double*) argptr);
+        case arg_string:
+            if(!argptr || !(*(char**)argptr)){
+                return snprintf(buf, maxlen, "(null)");
+            }else if(!(**(char**)argptr)){
+                return snprintf(buf, maxlen, "(empty)");
+            }
+            char *str = *(char**) argptr;
+            DBG("string %s", str);
+            size_t z = strlen(str);
+            while(pos + z > *buflen + 5){
+                *buflen += BUFSIZ;
+                *buffer = realloc(*buffer, *buflen);
+                if(!*buffer) ERRX("realloc()");
+                maxlen += BUFSIZ;
+                buf = *buffer + pos;
+            }
+            return snprintf(buf, maxlen, "\"%s\"", str);
+        default:
+            DBG("function");
+            return snprintf(buf, maxlen, "\"(unsupported)\"");
     }
-    return NULL;
+    return 0;
+}
+
+// print one option
+static size_t print_opt(sl_option_t *opt, char **buffer, size_t *buflen, size_t pos){
+    if((ssize_t)*buflen - pos < 3 *(SL_KEY_LEN + SL_VAL_LEN)){
+        *buflen += BUFSIZ;
+        *buffer = realloc(*buffer, *buflen);
+        if(!*buffer) ERR("realloc()");
+    }
+    char *buf = *buffer + pos;
+    size_t l = 0, maxlen = *buflen - pos - 1;
+    size_t got = snprintf(buf, maxlen, "%s = ", opt->name);
+    l = got; maxlen -= got; buf += got;
+    if(opt->flag){
+        DBG("got flag '%d'", *opt->flag);
+        l += snprintf(buf, maxlen, "%d\n", *opt->flag);
+        return l;
+    }
+    if(!opt->argptr){ // ERR!
+        l += snprintf(buf, maxlen, "\"(no argptr)\"\n");
+        WARNX("Parameter \"%s\" have no argptr!", opt->name);
+        return l;
+    }
+    DBG("type: %d", opt->type);
+    got = pr_val(opt->type, opt->argptr, buffer, buflen, pos + l);
+    l += got; maxlen -= got; buf += got;
+    l += snprintf(buf, maxlen, "\n");
+    return l;
 }
 
 /**
@@ -108,156 +192,44 @@ static sl_option_t *opt_search(const char *key, sl_option_t *options){
 char *sl_print_opts(sl_option_t *opt, int showall){
     char *buf = MALLOC(char, BUFSIZ);
     size_t L = BUFSIZ, l = 0;
-    for(; opt->name; ++opt){
+    for(; opt->help; ++opt){
+        if(!opt->name) continue; // only show help - not config option!
         DBG("check %s", opt->name);
         if(!showall && opt->has_arg == NO_ARGS) continue; // show NO_ARGS only when `showall==TRUE`
         if(!showall && opt->type == arg_string && !opt->argptr) continue; // empty string
-        if((ssize_t)L - l < SL_KEY_LEN + SL_VAL_LEN + 5){
-            L += BUFSIZ;
-            buf = realloc(buf, L);
-            if(!buf) ERR("realloc()");
-        }
-        l += sprintf(buf + l, "%s=", opt->name);
-        if(opt->flag){
-            DBG("got flag '%d'", *opt->flag);
-            l += sprintf(buf + l, "%d\n", *opt->flag);
-            continue;
-        }
-        if(!opt->argptr){ // ERR!
-            l += sprintf(buf + l, "\"(no argptr)\"\n");
-            WARNX("Parameter \"%s\" have no argptr!", opt->name);
-            continue;
-        }
-        int z = 0;
-        DBG("type: %d", opt->type);
-        switch(opt->type){
-            case arg_none:
-            case arg_int:
-                DBG("int %d", *(int*) opt->argptr);
-                l += sprintf(buf + l, "%d", *(int*) opt->argptr);
-            break;
-            case arg_longlong:
-                DBG("long long %lld", *(long long*) opt->argptr);
-                l += sprintf(buf + l, "%lld", *(long long*) opt->argptr);
-            break;
-            case arg_float:
-                DBG("float %g", *(float*) opt->argptr);
-                l += sprintf(buf + l, "%g", *(float*) opt->argptr);
-            break;
-            case arg_double:
-                DBG("double %g", *(double*) opt->argptr);
-                l += sprintf(buf + l, "%g", *(double*) opt->argptr);
-            break;
-            case arg_string:
-                if(!opt->argptr || !(*(char*)opt->argptr)){
-                    l += sprintf(buf + l, "(null)");
-                    break;
-                }else if(!(**(char**)opt->argptr)){
-                    l += sprintf(buf + l, "(empty)");
-                    break;
-                }
-                DBG("string %s", *(char**) opt->argptr);
-                z = strlen(*(char**) opt->argptr);
-                while(l + z > L + 3){
-                    L += BUFSIZ;
-                    buf = realloc(buf, L);
-                }
-                l += sprintf(buf + l, "%s", *(char**) opt->argptr);
-            break;
-            default:
-                DBG("function");
-                l += sprintf(buf + l, "\"(unsupported)\"");
-            break;
-        }
-        l += sprintf(buf + l, "\n");
+        if(opt->has_arg == MULT_PAR){
+            sl_option_t tmpopt = *opt;
+            DBG("type: %d", tmpopt.type);
+            if(!opt->argptr){ DBG("No pointer to array!"); continue; }
+#if 0
+            void ***pp = (void***)opt->argptr;
+            if(!*(char***)pp){ DBG("Array is empty"); continue; }
+            while(**pp){
+                if(opt->type == arg_string){
+                    DBG("str");
+                    tmpopt.argptr = *pp; // string is pointer to pointer!
+                }else tmpopt.argptr = **pp;
+                if(!tmpopt.argptr){ DBG("null"); break; }
+                l += print_opt(&tmpopt, &buf, &L, l);
+                ++(*pp);
+            }
+#endif
+            void **pp = *(void***)opt->argptr;
+            if(!(char**)pp){ DBG("Array is empty"); continue; }
+            while(*pp){
+                if(opt->type == arg_string){
+                    DBG("str");
+                    tmpopt.argptr = pp; // string is pointer to pointer!
+                }else tmpopt.argptr = *pp;
+                if(!tmpopt.argptr){ DBG("null"); break; }
+                l += print_opt(&tmpopt, &buf, &L, l);
+                ++(pp);
+            }
+        }else l += print_opt(opt, &buf, &L, l);
     }
     return buf;
 }
 
-/**
- * @brief sl_set_optval - convert `val` to `oval` parameter according to argument type
- * @param oval (o) - value in int/long long/double/float
- * @param opt (i) - record with options
- * @param val (i) - new value
- * @return FALSE if failed (or wrong data range)
- */
-int sl_set_optval(sl_optval *oval, sl_option_t *opt, const char *val){
-    if(!oval || !opt || !val) return FALSE;
-    long long ll;
-    double d;
-    switch(opt->type){
-        case arg_none:
-        case arg_int:
-        case arg_longlong:
-            do{
-                if(!sl_str2ll(&ll, val)){
-                    break;
-                }
-                if(opt->type != arg_longlong){
-                    if(ll > INT_MAX || ll < INT_MIN){
-                        break;
-                    }
-                    oval->ival = (int)ll;
-                }else oval->llval = ll;
-                return TRUE;
-            }while(0);
-        break;
-        case arg_double:
-        case arg_float:
-            do{
-                if(!sl_str2d(&d, val)){
-                    break;
-                }
-                if(opt->type == arg_double){
-                    oval->dval = d;
-                }else{
-                    if(d > FLT_MAX || d < FLT_MIN){
-                        break;
-                    }
-                    oval->fval = (float)d;
-                }
-                return TRUE;
-            }while(0);
-        break;
-        case arg_string:
-            return TRUE;
-        break;
-        default:
-            WARNX(_("Unsupported option type"));
-            return FALSE;
-    }
-    WARNX(_("Wrong number format '%s'"), val);
-    return FALSE;
-}
-
-// increment opt->argptr or set it to val
-static void setoa(sl_option_t *opt, const char *val){
-    if(!opt || !opt->argptr || opt->type == arg_function) return;
-    sl_optval O;
-    if(!sl_set_optval(&O, opt, val)) return;
-    switch(opt->type){
-        case arg_none: // increment integer
-            *(int*) opt->argptr += O.ival;
-        break;
-        case arg_int:
-            *(int*) opt->argptr = O.ival;
-        break;
-        case arg_longlong:
-            *(long long*) opt->argptr = O.llval;
-        break;
-        case arg_double:
-            *(double*) opt->argptr = O.dval;
-        break;
-        case arg_float:
-            *(float*) opt->argptr = O.fval;
-        break;
-        case arg_string:
-            *(char**)opt->argptr = strdup(val);
-        break;
-        default:
-        break;
-    }
-}
 
 /**
  * @brief sl_conf_readopts - simplest configuration:
@@ -273,29 +245,85 @@ int sl_conf_readopts(const char *filename, sl_option_t *options){
         WARN(_("Can't open %s"), filename);
         return 0;
     }
-    int N = 0;
-    char key[SL_KEY_LEN], val[SL_VAL_LEN];
+    int argc = 1;
+#define BUFSZ   (SL_KEY_LEN+SL_VAL_LEN+8)
+    char key[SL_KEY_LEN], val[SL_VAL_LEN], obuf[BUFSZ];
+    int argvsize = 0;
+    char **argv = NULL;
     do{
         int r = read_key(f, key, val);
         if(r < 0) break;
         if(r == 0) continue;
-        sl_option_t *opt = opt_search(key, options);
-        if(!opt){
-            WARNX(_("Wrong key: '%s'"), key);
-            continue;
+        DBG("key='%s', val='%s'", key, (r == 2) ? val : "(absent)");
+        ++argc;
+        if(argvsize <= argc){
+            argvsize += 256;
+            argv = realloc(argv, sizeof(char*) * argvsize);
+            if(!argv) ERRX("sl_conf_readopts: realloc() error");
         }
-        if(opt->flag) *opt->flag = opt->val;
-        if(r == 1){ // only key
-            if(opt->has_arg != NO_ARGS && opt->has_arg != OPT_ARG){
-                WARNX(_("Key '%s' need value"), opt->name);
-                continue;
-            }
-            if(opt->argptr) setoa(opt, "1");
-        }else{ // key + value
-            if(opt->argptr) setoa(opt, val);
-            else WARNX(_("Key '%s' have no argptr!"), opt->name);
-        }
-        ++N;
+        if(argc == 2) argv[0] = strdup(__progname); // all as should be
+        if(r == 2){
+            // remove trailing/ending quotes
+            sl_remove_quotes(val);
+            snprintf(obuf, BUFSZ-1, "--%s=%s", key, val);
+        }else snprintf(obuf, BUFSZ-1, "--%s", key);
+        DBG("next argv: '%s'", obuf);
+        argv[argc-1] = strdup(obuf);
     }while(1);
-    return N;
+    if(!argc) return 0;
+    int N = argc; char **a = argv;
+    sl_parseargs_hf(&argc, &a, options, sl_conf_showhelp);
+    for(int n = 0; n < N; ++n) free(argv[n]);
+    free(argv);
+    return N - argc; // amount of recognized options
+}
+
+// sort only by long options
+static int confsort(const void *a1, const void *a2){
+    const sl_option_t *o1 = (sl_option_t*)a1, *o2 = (sl_option_t*)a2;
+    const char *l1 = o1->name, *l2 = o2->name;
+    // move empty options to end of list
+    if(!l1 && !l2) return 1;
+    if(!l1) return 1;
+    if(!l2) return -1;
+    return strcmp(l1, l2);
+}
+
+static void pr_helpstring(sl_option_t *opt){
+    if(!opt->name || !opt->help) return;
+    printf("  %s", opt->name);
+    if(opt->has_arg == NEED_ARG || opt->has_arg == MULT_PAR) // required argument
+        printf(" = arg");
+    else if(opt->has_arg == OPT_ARG) // optional argument
+        printf(" [= arg]");
+    printf(" -- %s", opt->help);
+    if(opt->has_arg == MULT_PAR) printf(" (can occur multiple times)");
+    printf("\n");
+}
+
+/**
+ * @brief sl_conf_showhelp - show help for config file
+ *      (the same as `sl_showhelp`, but without "--", short opts and exit()
+ * @param options - config options (only long opts used)
+ */
+void sl_conf_showhelp(int idx, sl_option_t *options){
+    if(!options || !(*options).help) return;
+    // count amount of options
+    sl_option_t *opts = options;
+    int N; for(N = 0; opts->help; ++N, ++opts);
+    if(N == 0) exit(-2);
+    if(idx > -1){
+        if(idx >=N) WARNX(_("sl_conf_showhelp(): wrong index"));
+        else pr_helpstring(&options[idx]);
+        return;
+    }
+    sl_option_t *tmpopts = MALLOC(sl_option_t, N);
+    memcpy(tmpopts, options, N*sizeof(sl_option_t));
+    printf(_("Configuration file options (format: key=value):\n"));
+    qsort(tmpopts, N, sizeof(sl_option_t), confsort);
+    for(int _ = 0; _ < N; ++_){
+        if(!tmpopts[_].name) continue;
+        pr_helpstring(&tmpopts[_]);
+    }
+    free(tmpopts);
 }
