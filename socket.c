@@ -16,8 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <ctype.h>
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <inttypes.h>
 #include <netdb.h>
 #include <poll.h>
 #include <stdio.h>
@@ -25,7 +26,6 @@
 #include <strings.h>
 #include <sys/ioctl.h>
 #include <sys/un.h>  // unix socket
-#include <inttypes.h>
 #include <unistd.h>
 
 #include "usefull_macros.h"
@@ -345,9 +345,58 @@ static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
         sl_sock_sendbyte(client, '\n');
         return RESULT_SILENCE;
     }
+    // check for strict params like `key=val`
     for(sl_sock_hitem_t *h = client->handlers; h->handler; ++h){
         if(strcmp(h->key, key)) continue;
+        if(h->data){
+            sl_sock_keyno_t *kn = (sl_sock_keyno_t*)h->data;
+            if(-1 == isinf(kn->magick)) kn->n = -1; // no value number
+        }
         return h->handler(client, h, valptr);
+    }
+    // now check for optional key's number like key0=val, key[1]=val, key(2)=val or key{3}=val
+    int keylen = strlen(key);
+    char *numstart = NULL;
+    const char *bra = "([{", *ket = ")]}";
+    char *found = strchr(ket, key[keylen - 1]);
+    DBG("found=%s", found);
+    if(found){
+        char *keyend = strchr(key, bra[found - ket]); // find starting bracket
+        DBG("keyend=%s", keyend);
+        if(keyend){
+            numstart = keyend + 1;
+            keylen = keyend - key;
+        }
+    }else{ // maybe this is key123=val ?
+        numstart = &key[keylen-1];
+        while(numstart > key && isdigit(*numstart)) --numstart;
+        if(numstart == &key[keylen-1]) numstart = NULL;
+        else{
+            keylen = (++numstart) - key;
+            DBG("numstart=%s", numstart);
+        }
+    }
+    if(numstart){
+        char *eptr;
+        long long LL = strtoll(numstart, &eptr, 0);
+        DBG("LL=%lld, len=%d", LL, keylen);
+        if(eptr != numstart && LL >= 0 && LL <= INT_MAX){
+            int parno = (int)LL;
+            for(sl_sock_hitem_t *h = client->handlers; h->handler; ++h){
+                if(strncmp(h->key, key, keylen)) continue; // now search only in first `keylen` bytes
+                DBG("found %s", h->key);
+                if(h->data){
+                    sl_sock_keyno_t *kn = (sl_sock_keyno_t*)h->data;
+                    if(-1 == isinf(kn->magick)){
+                        kn->n = parno;
+                        DBG("run handler, parno=%d", parno);
+                        return h->handler(client, h, valptr);
+                    }
+                }
+                DBG("NO data");
+                break;
+            }
+        }
     }
     if(client->defmsg_handler) return client->defmsg_handler(client, str);
     return RESULT_BADKEY;
@@ -826,6 +875,7 @@ ssize_t sl_sock_readline(sl_sock_t *sock, char *str, size_t len){
 sl_sock_hresult_e sl_sock_inthandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str){
     char buf[128];
     sl_sock_int_t *i = (sl_sock_int_t *)hitem->data;
+    if(!i) return RESULT_FAIL;
     if(!str){ // getter
         snprintf(buf, 127, "%s=%" PRId64 "\n", hitem->key, i->val);
         sl_sock_sendstrmessage(client, buf);
@@ -841,6 +891,7 @@ sl_sock_hresult_e sl_sock_inthandler(sl_sock_t *client, sl_sock_hitem_t *hitem, 
 sl_sock_hresult_e sl_sock_dblhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str){
     char buf[128];
     sl_sock_double_t *d = (sl_sock_double_t *)hitem->data;
+    if(!d) return RESULT_FAIL;
     if(!str){ // getter
         snprintf(buf, 127, "%s=%g\n", hitem->key, d->val);
         sl_sock_sendstrmessage(client, buf);
@@ -855,6 +906,7 @@ sl_sock_hresult_e sl_sock_dblhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, 
 sl_sock_hresult_e sl_sock_strhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str){
     char buf[SL_VAL_LEN + SL_KEY_LEN + 3];
     sl_sock_string_t *s = (sl_sock_string_t*) hitem->data;
+    if(!s) return RESULT_FAIL;
     if(!str){ // getter
         snprintf(buf, SL_VAL_LEN + SL_KEY_LEN + 2, "%s=%s\n", hitem->key, s->val);
         sl_sock_sendstrmessage(client, buf);
@@ -867,4 +919,25 @@ sl_sock_hresult_e sl_sock_strhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, 
     memcpy(s->val, str, l);
     s->val[l] = 0;
     return RESULT_OK;
+}
+
+/**
+ * @brief sl_sock_keyno_init - init k->magick and k-> to default values
+ * @param k - key's number value
+ */
+void sl_sock_keyno_init(sl_sock_keyno_t* k){
+    if(!k) return;
+    k->magick = -INFINITY;
+    k->n = -1;
+}
+/**
+ * @brief sl_sock_keyno_check - check if this is a really `sl_sock_keyno_t`
+ * @param k - pointer to check
+ * @return k.n or -1 if failed
+ */
+int sl_sock_keyno_check(sl_sock_keyno_t* k){
+    DBG("magick=%g (%d)", k->magick, isinf(k->magick));
+    if(!k || -1 != isinf(k->magick)) return -1;
+    DBG("k->n=%d", k->n);
+    return k->n;
 }

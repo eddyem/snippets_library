@@ -36,6 +36,7 @@
 #include <unistd.h>         // pid_t
 // just for different purposes
 #include <limits.h>
+#include <math.h> // inf/isinf
 #include <stdint.h>
 
 #if defined GETTEXT
@@ -444,6 +445,15 @@ typedef struct{
     char val[SL_VAL_LEN];
     int len;        // strlen of `val`
 } sl_sock_string_t;
+
+// optional keyword number like key[12] = 500
+typedef struct{
+    double magick;  // Inf - to distinguish it from sl_sock_*_t
+    int n;          // if n < 0 there was no any number in `key`
+} sl_sock_keyno_t;
+#define SL_SOCK_KEYNO_DEFAULT       (sl_sock_keyno_t){.magick = -INFINITY, .n = -1}
+void sl_sock_keyno_init(sl_sock_keyno_t*);
+int sl_sock_keyno_check(sl_sock_keyno_t*);
 
 struct sl_sock_hitem;
 struct sl_sock;

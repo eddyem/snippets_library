@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-10 12:08+0300\n"
+"POT-Creation-Date: 2025-11-06 15:03+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -121,35 +121,35 @@ msgstr ""
 msgid "Server disconnected"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:385
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:434
 msgid "Can't start server handlers thread"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:454
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:503
 msgid "Limit of connections reached"
 msgstr ""
 
 #. check for RB overflow
 #. -1 - buffer empty (can't be), -2 - buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:498
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:499
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:547
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:548
 #, c-format
 msgid "Server thread: ring buffer overflow for fd=%d"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:513
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:562
 #, c-format
 msgid "Server thread: can't write data to ringbuffer: overflow from fd=%d"
 msgstr ""
 
 #. buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:525
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:574
 #, c-format
 msgid "Server thread: buffer overflow from fd=%d"
 msgstr ""
 
 #. never reached
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:615
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:664
 #, c-format
 msgid "Unsupported socket type %d"
 msgstr ""

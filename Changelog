@@ -1,3 +1,12 @@
+Thu Nov  6 11:25:07 MSK 2025
+VERSION 0.3.4:
+add data type:
+- sl_sock_keyno_t - number of key (like key[keyno] = val) using in sl_sock_hitem_t.data
+add functions:
+- sl_sock_keyno_init - init keyno (or use macro SL_SOCK_KEYNO_DEFAUL in assignment)
+- sl_sock_keyno_check - return -1 if there's no keyno, else return its value
+New functional listed in examples/clientserver.c introducing key `flags` that allows to work with bit flags as a whole or by bits like flags[1]=1, flags21=0, flags{31} or flags(14)...
+
 Wed Sep 10 14:19:24 MSK 2025
 (still version 0.3.3: I forgot to add changelog last commits)
 - fixed minor bugs and memory leaks

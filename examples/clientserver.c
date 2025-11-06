@@ -122,6 +122,7 @@ static void runclient(sl_sock_t *s){
 static sl_sock_int_t iflag = {0};
 static sl_sock_double_t dflag = {0};
 static sl_sock_string_t sflag = {0};
+static uint32_t bitflags = 0;
 
 static sl_sock_hresult_e dtimeh(sl_sock_t _U_ *client, _U_ sl_sock_hitem_t *item, _U_ const char *req){
     char buf[32];
@@ -169,11 +170,39 @@ static void disconnected(sl_sock_t *c){
     if(c->type == SOCKT_UNIX) LOGMSG("Disconnected client fd=%d", c->fd);
     else LOGMSG("Disconnected client fd=%d, IP=%s", c->fd, c->IP);
 }
+// default (unknown key) handler
 static sl_sock_hresult_e defhandler(struct sl_sock *s, const char *str){
     if(!s || !str) return RESULT_FAIL;
     sl_sock_sendstrmessage(s, "You entered wrong command:\n```\n");
     sl_sock_sendstrmessage(s, str);
     sl_sock_sendstrmessage(s, "\n```\nTry \"help\"\n");
+    return RESULT_SILENCE;
+}
+// if we use this macro, there's no need to run `sl_sock_keyno_init` later
+static sl_sock_keyno_t kph_number = SL_SOCK_KEYNO_DEFAULT;
+// handler for key with optional parameter number
+static sl_sock_hresult_e keyparhandler(struct sl_sock *s, sl_sock_hitem_t *item, const char *req){
+    if(!item->data) return RESULT_FAIL;
+    char buf[1024];
+    int no = sl_sock_keyno_check((sl_sock_keyno_t*)item->data);
+    long long newval = -1;
+    if(req){
+        if(!sl_str2ll(&newval, req) || newval < 0 || newval > 0xffffffff) return RESULT_BADVAL;
+    }
+    printf("no = %d\n", no);
+    if(no < 0){ // flags as a whole
+        if(req) bitflags = (uint32_t)newval;
+        snprintf(buf, 1023, "flags = 0x%08X\n", bitflags);
+        sl_sock_sendstrmessage(s, buf);
+    }else if(no < 32){ // bit access
+        int bitmask = 1 << no;
+        if(req){
+            if(newval) bitflags |= bitmask;
+            else bitflags &= ~bitmask;
+        }
+        snprintf(buf, 1023, "flags[%d] = %d\n", no, bitflags & bitmask ? 1 : 0);
+        sl_sock_sendstrmessage(s, buf);
+    }else return RESULT_BADKEY;
     return RESULT_SILENCE;
 }
 
@@ -183,6 +212,7 @@ static sl_sock_hitem_t handlers[] = {
     {sl_sock_strhandler, "str", "set/get string variable", (void*)&sflag},
     {show, "show", "show current flags @ server console", NULL},
     {dtimeh, "dtime", "get server's UNIX time for all clients connected", NULL},
+    {keyparhandler, "flags", "set/get bit flags as whole (flags=val) or by bits (flags[bit]=val)", (void*)&kph_number},
     {NULL, NULL, NULL, NULL}
 };
 
@@ -193,6 +223,7 @@ int main(int argc, char **argv){
     if(!G.node) ERRX("Point node");
     sl_socktype_e type = (G.isunix) ? SOCKT_UNIX : SOCKT_NET;
     if(G.isserver){
+        //sl_sock_keyno_init(&kph_number); // don't forget to init first or use macro in initialisation
         s = sl_sock_run_server(type, G.node, -1, handlers);
     } else {
         sl_setup_con();
