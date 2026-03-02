@@ -418,6 +418,8 @@ size_t sl_RB_writestr(sl_ringbuffer_t *b, char *s);
 /******************************************************************************\
                          The original socket.h
 \******************************************************************************/
+// max length (including trailing '\0') of UNIX socket path
+#define UNIX_SOCK_PATH_MAX 108
 
 // handler result: what to send to client
 typedef enum{
@@ -448,7 +450,7 @@ typedef struct{
 
 // optional keyword number like key[12] = 500
 typedef struct{
-    double magick;  // Inf - to distinguish it from sl_sock_*_t
+    double magick;  // -Inf - to distinguish it from sl_sock_*_t
     int n;          // if n < 0 there was no any number in `key`
 } sl_sock_keyno_t;
 #define SL_SOCK_KEYNO_DEFAULT       (sl_sock_keyno_t){.magick = -INFINITY, .n = -1}
@@ -477,6 +479,9 @@ typedef enum{
 } sl_socktype_e;
 
 struct sl_sock;
+
+// opent socket and return its file descriptor
+int sl_sock_getfd(sl_socktype_e type, const char *path);
 
 // default max clients amount
 #define SL_DEF_MAXCLIENTS   (32)
@@ -545,4 +550,3 @@ int sl_sock_sendall(sl_sock_t *sock, uint8_t *data, size_t len);
 sl_sock_hresult_e sl_sock_inthandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
 sl_sock_hresult_e sl_sock_dblhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
 sl_sock_hresult_e sl_sock_strhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
-

@@ -81,17 +81,24 @@ const char *sl_sock_hresult2str(sl_sock_hresult_e r){
 }
 
 // convert UNIX socket name for unaddr; result should be free'd
-static char *convunsname(const char *path){
-    char *apath = MALLOC(char, 106);
+static char *convunsname(const char *path, socklen_t *nbytes){
+    char *apath = MALLOC(char, UNIX_SOCK_PATH_MAX);
+    socklen_t len = 0;
     if(*path == 0){
         DBG("convert name starting from 0");
         apath[0] = 0;
-        strncpy(apath+1, path+1, 104);
+        strncpy(apath+1, path+1, UNIX_SOCK_PATH_MAX-2);
+        len = 1 + strlen(path+1);
     }else if(strncmp("\\0", path, 2) == 0){
         DBG("convert name starting from \\0");
         apath[0] = 0;
-        strncpy(apath+1, path+2, 104);
-    }else strncpy(apath, path, 105);
+        strncpy(apath+1, path+2, UNIX_SOCK_PATH_MAX-2);
+        len = 1 + strlen(path+2);
+    }else{
+        strncpy(apath, path, UNIX_SOCK_PATH_MAX-1);
+        len = strlen(path);
+    }
+    if(nbytes) *nbytes = len + sizeof(sa_family_t); // amount of bytes for `bind()` (parameter `len`)
     return apath;
 }
 
@@ -358,7 +365,7 @@ static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
     int keylen = strlen(key);
     char *numstart = NULL;
     const char *bra = "([{", *ket = ")]}";
-    char *found = strchr(ket, key[keylen - 1]);
+    char *found = strchr((char*)ket, key[keylen - 1]);
     DBG("found=%s", found);
     if(found){
         char *keyend = strchr(key, bra[found - ket]); // find starting bracket
@@ -637,28 +644,35 @@ errex:
  */
 static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hitem_t *handlers, int bufsiz, int isserver){
     if(!path || type >= SOCKT_AMOUNT) return NULL;
+    printf("OPen\n");
+    FNAME();
     if(bufsiz < 256) bufsiz = 256;
     int sock = -1;
     struct addrinfo ai = {0}, *res = &ai;
     struct sockaddr_un unaddr = {0};
-    char *str = NULL;
     ai.ai_socktype = SOCK_STREAM;
     switch(type){
         case SOCKT_UNIX:
-            str = convunsname(path);
+        DBG("SOCKT_UNIX");
+            {
+            char *str = convunsname(path, &ai.ai_addrlen);
+            DBG("path+1: %s", str+1);
             if(!str) return NULL;
             unaddr.sun_family = AF_UNIX;
             ai.ai_addr = (struct sockaddr*) &unaddr;
-            ai.ai_addrlen = sizeof(unaddr);
-            memcpy(unaddr.sun_path, str, 106);
+            memcpy(unaddr.sun_path, str, UNIX_SOCK_PATH_MAX);
+            FREE(str); // don't forget!
             ai.ai_family = AF_UNIX;
             //ai.ai_socktype = SOCK_SEQPACKET;
+            }
         break;
         case SOCKT_NET:
         case SOCKT_NETLOCAL:
-            //ai.ai_socktype = SOCK_DGRAM; // = SOCK_STREAM;
-            ai.ai_family = AF_INET;
-            if(isserver) ai.ai_flags = AI_PASSIVE;
+            if(isserver){
+                ai.ai_flags = AI_PASSIVE;
+                //ai.ai_family = AF_INET;
+            }// else
+                ai.ai_family = AF_UNSPEC; // not AF_INET for client as there maybe problems with IPv6
         break;
         default: // never reached
             WARNX(_("Unsupported socket type %d"), type);
@@ -675,9 +689,9 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
         sl_sock_delete(&s);
         return NULL;
     }else{ // fill node/service
-        if(type == SOCKT_UNIX) s->node = strdup(str); // str now is converted path
+        if(type == SOCKT_UNIX) s->node = strdup(path); // str now is path copy
         else{
-            char *delim = strchr(path, ':');
+            char *delim = strchr((char*)path, ':');
             if(!delim) s->service = strdup(path); // only port
             else{
                 if(delim == path) s->service = strdup(path+1);
@@ -716,7 +730,7 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
     }
     for(struct addrinfo *p = res; p; p = p->ai_next){
         if((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) continue;
-        DBG("Try proto %d, type %d", p->ai_protocol, p->ai_socktype);
+        DBG("Try proto %d, type %d, socktype %d", p->ai_protocol, p->ai_socktype, p->ai_socktype);
         if(isserver){
             int reuseaddr = 1;
             if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int)) == -1){
@@ -737,10 +751,12 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
             if(connect(sock, p->ai_addr, p->ai_addrlen) == -1){
                 WARN("connect()");
                 close(sock); sock = -1;
+                continue;
             }
         }
         break;
     }
+    if(type != SOCKT_UNIX) freeaddrinfo(res); // don't forget to free memory allocated with getaddrinfo
     if(sock < 0) sl_sock_delete(&s);
     else{
         s->fd = sock;

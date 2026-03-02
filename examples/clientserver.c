@@ -225,9 +225,11 @@ int main(int argc, char **argv){
     if(G.isserver){
         //sl_sock_keyno_init(&kph_number); // don't forget to init first or use macro in initialisation
         s = sl_sock_run_server(type, G.node, -1, handlers);
+        DBG("Server started");
     } else {
         sl_setup_con();
         s = sl_sock_run_client(type, G.node, -1);
+        DBG("Client started");
     }
     if(!s) ERRX("Can't create socket and/or run threads");
     if(G.isserver){
