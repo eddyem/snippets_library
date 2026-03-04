@@ -48,7 +48,7 @@ int sl_sock_getmaxclients(sl_sock_t *sock){
 void sl_sock_maxclhandler(sl_sock_t *sock, void (*h)(int)){
     if(sock) sock->toomuch_handler = h;
 }
-// setter of "new client connected" handler
+// setter of "new client connected" han;dler
 void sl_sock_connhandler(sl_sock_t *sock, int(*h)(struct sl_sock*)){
     if(sock) sock->newconnect_handler = h;
 }
@@ -78,28 +78,6 @@ static const char *resmessages[RESULT_AMOUNT] = {
 const char *sl_sock_hresult2str(sl_sock_hresult_e r){
     if(r >= RESULT_AMOUNT) return "BADRESULT";
     return resmessages[r];
-}
-
-// convert UNIX socket name for unaddr; result should be free'd
-static char *convunsname(const char *path, socklen_t *nbytes){
-    char *apath = MALLOC(char, UNIX_SOCK_PATH_MAX);
-    socklen_t len = 0;
-    if(*path == 0){
-        DBG("convert name starting from 0");
-        apath[0] = 0;
-        strncpy(apath+1, path+1, UNIX_SOCK_PATH_MAX-2);
-        len = 1 + strlen(path+1);
-    }else if(strncmp("\\0", path, 2) == 0){
-        DBG("convert name starting from \\0");
-        apath[0] = 0;
-        strncpy(apath+1, path+2, UNIX_SOCK_PATH_MAX-2);
-        len = 1 + strlen(path+2);
-    }else{
-        strncpy(apath, path, UNIX_SOCK_PATH_MAX-1);
-        len = strlen(path);
-    }
-    if(nbytes) *nbytes = len + sizeof(sa_family_t); // amount of bytes for `bind()` (parameter `len`)
-    return apath;
 }
 
 /**
@@ -635,104 +613,110 @@ errex:
     return NULL;
 }
 
+// convert UNIX socket name for unaddr; result should be free'd
+static char *convunsname(const char *path, socklen_t *nbytes){
+    char *apath = MALLOC(char, UNIX_SOCK_PATH_MAX);
+    socklen_t len = 0;
+    if(*path == 0 || *path == '@'){
+        DBG("convert name starting from %s", (*path == 0) ? "\\0" : "@");
+        apath[0] = 0;
+        strncpy(apath+1, path+1, UNIX_SOCK_PATH_MAX-2);
+        len = 1 + strlen(path+1);
+    }else if(strncmp("\\0", path, 2) == 0){
+        DBG("convert name starting from \\0");
+        apath[0] = 0;
+        strncpy(apath+1, path+2, UNIX_SOCK_PATH_MAX-2);
+        len = 1 + strlen(path+2);
+    }else{
+        strncpy(apath, path, UNIX_SOCK_PATH_MAX-1);
+        len = strlen(path);
+    }
+    if(nbytes) *nbytes = len + sizeof(sa_family_t); // amount of bytes for `bind()` (parameter `len`)
+    return apath;
+}
+
 /**
- * @brief sl_sock_open - open socket (client or server)
- * @param type - socket type
- * @param path - path (for UNIX socket); for NET: ":port" for server, "server:port" for client
- * @param handlers - standard handlers when read data (or NULL)
- * @param bufsiz - input ring buffer size
- * @param isserver - 1 for server, 0 for client
- * @return socket descriptor or NULL if failed
- * to create anonymous UNIX-socket you can start "path" from 0 or from string "\0"
+ * @brief mknodeservice - break `path` into node name and port for INET socket
+ * @param path (i) - path like "node:service"
+ * @param node (o) - pointer to `char *` - node name
+ * @param service (o) - pointer to `char *` - port ("service")
  */
-static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hitem_t *handlers, int bufsiz, int isserver){
-    if(!path || type >= SOCKT_AMOUNT) return NULL;
-    printf("OPen\n");
+static void mknodeservice(const char *path, char **node, char **service){
+    if(!path || !node || !service) return;
+    char *delim = strchr((char*)path, ':');
+    if(!delim) *service = strdup(path); // only port
+    else{
+        if(delim == path) *service = strdup(path+1);
+        else{
+            size_t l = delim - path;
+            *node = MALLOC(char, l + 1);
+            strncpy(*node, path, l);
+            *service = strdup(delim + 1);
+        }
+    }
+}
+
+/**
+ * @brief sl_sock_open - open socket, run bind or connect and return its file descriptor
+ * @param type - socket type
+ * @param path - path to UNIX-socket, port or "host:port" for INET-socket
+ * @param isserver - 1 for server, 0 for client
+ * @param socktype - custom socket type or "<1" for default (SOCK_STREAM)
+ * @return file descriptor or -1 if can't open
+ */
+int sl_sock_open(sl_socktype_e type, const char *path, int isserver, int ai_socktype){
     FNAME();
-    if(bufsiz < 256) bufsiz = 256;
+    if(!path || type >= SOCKT_AMOUNT) return -1;
+    if(ai_socktype < 1) ai_socktype = SOCK_STREAM;
     int sock = -1;
     struct addrinfo ai = {0}, *res = &ai;
     struct sockaddr_un unaddr = {0};
-    ai.ai_socktype = SOCK_STREAM;
+    ai.ai_socktype = ai_socktype;
     switch(type){
-        case SOCKT_UNIX:
+    case SOCKT_UNIX:
+    {
         DBG("SOCKT_UNIX");
-            {
-            char *str = convunsname(path, &ai.ai_addrlen);
-            DBG("path+1: %s", str+1);
-            if(!str) return NULL;
-            unaddr.sun_family = AF_UNIX;
-            ai.ai_addr = (struct sockaddr*) &unaddr;
-            memcpy(unaddr.sun_path, str, UNIX_SOCK_PATH_MAX);
-            FREE(str); // don't forget!
-            ai.ai_family = AF_UNIX;
-            //ai.ai_socktype = SOCK_SEQPACKET;
-            }
-        break;
-        case SOCKT_NET:
-        case SOCKT_NETLOCAL:
-            if(isserver){
-                ai.ai_flags = AI_PASSIVE;
-                //ai.ai_family = AF_INET;
-            }// else
-                ai.ai_family = AF_UNSPEC; // not AF_INET for client as there maybe problems with IPv6
-        break;
-        default: // never reached
-            WARNX(_("Unsupported socket type %d"), type);
-            return NULL;
-        break;
+        char *str = convunsname(path, &ai.ai_addrlen);
+        DBG("path+1: %s", str+1);
+        if(!str) return -1;
+        unaddr.sun_family = AF_UNIX;
+        ai.ai_addr = (struct sockaddr*) &unaddr;
+        memcpy(unaddr.sun_path, str, UNIX_SOCK_PATH_MAX);
+        FREE(str); // don't forget!
+        ai.ai_family = AF_UNIX;
+        //ai.ai_socktype = SOCK_SEQPACKET;
     }
-    sl_sock_t *s = MALLOC(sl_sock_t, 1);
-    s->type = type;
-    s->fd = -1;
-    s->maxclients = SL_DEF_MAXCLIENTS;
-    s->handlers = handlers;
-    s->buffer = sl_RB_new(bufsiz);
-    if(!s->buffer){
-        sl_sock_delete(&s);
-        return NULL;
-    }else{ // fill node/service
-        if(type == SOCKT_UNIX) s->node = strdup(path); // str now is path copy
-        else{
-            char *delim = strchr((char*)path, ':');
-            if(!delim) s->service = strdup(path); // only port
-            else{
-                if(delim == path) s->service = strdup(path+1);
-                else{
-                    size_t l = delim - path;
-                    s->node = MALLOC(char, l + 1);
-                    strncpy(s->node, path, l);
-                    s->service = strdup(delim + 1);
-                }
-            }
-            DBG("socket->service=%s", s->service);
-        }
-        DBG("socket->node=%s", s->node);
-    }
-    // now try to open socket
-    if(type != SOCKT_UNIX){
-        DBG("try to get addrinfo for node '%s' and service '%s'", s->node, s->service);
+        break;
+    case SOCKT_NET:
+    case SOCKT_NETLOCAL:
+    {
+        DBG("SOCKT_%s", (type == SOCKT_NET) ? "NET" : "NETLOCAL");
+        char *node = NULL, *service = NULL;
+        mknodeservice(path, &node, &service);
         if(isserver){
-            if(!s->node){
-                DBG("Socket type now is SOCKT_NET");
-                s->type = SOCKT_NET;
-            }
-            if(s->type == SOCKT_NETLOCAL){
-                DBG("SOCKT_NETLOCAL: change `node` to localhost");
-                FREE(s->node);
-                s->node = strdup("127.0.0.1");  // localhost
+            ai.ai_flags = AI_PASSIVE;
+            if(type == SOCKT_NETLOCAL){
+                FREE(node);
+                node = strdup("127.0.0.1");
             }
         }
-        DBG("---> node '%s', service '%s'", s->node, s->service);
-        int e = getaddrinfo(s->node, s->service, &ai, &res);
+        ai.ai_family = AF_UNSPEC; // not AF_INET for client as there maybe problems with IPv6
+        int e = getaddrinfo(node, service, &ai, &res);
         if(e){
             WARNX("getaddrinfo(): %s", gai_strerror(e));
-            sl_sock_delete(&s);
-            return NULL;
+            return -1;
         }
+        FREE(node);
+        FREE(service);
+    }
+        break;
+    default: // never reached
+        WARNX(_("Unsupported socket type %d"), type);
+        return -1;
+        break;
     }
     for(struct addrinfo *p = res; p; p = p->ai_next){
-        if((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) continue;
+        if((sock = socket(p->ai_family, p->ai_socktype|SOCK_NONBLOCK, p->ai_protocol)) < 0) continue;
         DBG("Try proto %d, type %d, socktype %d", p->ai_protocol, p->ai_socktype, p->ai_socktype);
         if(isserver){
             int reuseaddr = 1;
@@ -760,26 +744,74 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
         break;
     }
     if(type != SOCKT_UNIX) freeaddrinfo(res); // don't forget to free memory allocated with getaddrinfo
-    if(sock < 0) sl_sock_delete(&s);
-    else{
-        s->fd = sock;
-        pthread_mutex_init(&s->mutex, NULL);
-        DBG("s->fd=%d, node=%s, service=%s", s->fd, s->node, s->service);
-        int r = -1;
+    return sock;
+}
+
+/**
+ * @brief sl_sock_run - open socket and run thread (client or server)
+ * @param type - socket type
+ * @param path - path (for UNIX socket); for NET: ":port" for server, "server:port" for client
+ * @param handlers - standard handlers when read data (or NULL)
+ * @param bufsiz - input ring buffer size
+ * @param isserver - 1 for server, 0 for client
+ * @return socket descriptor or NULL if failed
+ * to create anonymous UNIX-socket you can start "path" from 0 or from string "\0"
+ */
+static sl_sock_t *sl_sock_run(sl_socktype_e type, const char *path, sl_sock_hitem_t *handlers, int bufsiz, int isserver){
+    FNAME();
+    if(bufsiz < 256) bufsiz = 256;
+    int sock = sl_sock_open(type, path, isserver, 0);
+    if(sock < 0) return NULL;
+    sl_sock_t *s = MALLOC(sl_sock_t, 1);
+    s->type = type;
+    s->fd = -1;
+    s->maxclients = SL_DEF_MAXCLIENTS;
+    s->handlers = handlers;
+    s->buffer = sl_RB_new(bufsiz);
+    if(!s->buffer){
+        sl_sock_delete(&s);
+        return NULL;
+    }else{ // fill node/service
+        if(type == SOCKT_UNIX) s->node = strdup(path); // str now is path copy
+        else{
+            mknodeservice(path, &s->node, &s->service);
+            DBG("socket->service=%s", s->service);
+        }
+        DBG("socket->node=%s", s->node);
+    }
+    // now try to open socket
+    if(type != SOCKT_UNIX){
+        DBG("try to get addrinfo for node '%s' and service '%s'", s->node, s->service);
         if(isserver){
-            if(s->handlers || s->defmsg_handler)
-                r = pthread_create(&s->rthread, NULL, serverthread, (void*)s);
-            else r = 0;
-        }else{
-            r = pthread_create(&s->rthread, NULL, clientrbthread, (void*)s);
+            if(!s->node){
+                DBG("Socket type now is SOCKT_NET");
+                s->type = SOCKT_NET;
+            }
+            if(s->type == SOCKT_NETLOCAL){
+                DBG("SOCKT_NETLOCAL: change `node` to localhost");
+                FREE(s->node);
+                s->node = strdup("127.0.0.1");  // localhost
+            }
         }
-        if(r){
-            WARN("pthread_create()");
-            sl_sock_delete(&s);
-        }else{
-            s->connected = TRUE;
-            DBG("fd=%d CONNECTED", s->fd);
-        }
+        DBG("---> node '%s', service '%s'", s->node, s->service);
+    }
+    s->fd = sock;
+    pthread_mutex_init(&s->mutex, NULL);
+    DBG("s->fd=%d, node=%s, service=%s", s->fd, s->node, s->service);
+    int r = -1;
+    if(isserver){
+        if(s->handlers || s->defmsg_handler)
+            r = pthread_create(&s->rthread, NULL, serverthread, (void*)s);
+        else r = 0;
+    }else{
+        r = pthread_create(&s->rthread, NULL, clientrbthread, (void*)s);
+    }
+    if(r){
+        WARN("pthread_create()");
+        sl_sock_delete(&s);
+    }else{
+        s->connected = TRUE;
+        DBG("fd=%d CONNECTED", s->fd);
     }
     return s;
 }
@@ -793,7 +825,7 @@ static sl_sock_t *sl_sock_open(sl_socktype_e type, const char *path, sl_sock_hit
  * @return socket descriptor or NULL if failed
  */
 sl_sock_t *sl_sock_run_client(sl_socktype_e type, const char *path, int bufsiz){
-    sl_sock_t *s = sl_sock_open(type, path, NULL, bufsiz, 0);
+    sl_sock_t *s = sl_sock_run(type, path, NULL, bufsiz, 0);
     return s;
 }
 
@@ -806,7 +838,7 @@ sl_sock_t *sl_sock_run_client(sl_socktype_e type, const char *path, int bufsiz){
  * @return socket descriptor or NULL if failed
  */
 sl_sock_t *sl_sock_run_server(sl_socktype_e type, const char *path, int bufsiz, sl_sock_hitem_t *handlers){
-    sl_sock_t *s = sl_sock_open(type, path, handlers, bufsiz, 1);
+    sl_sock_t *s = sl_sock_run(type, path, handlers, bufsiz, 1);
     return s;
 }
 

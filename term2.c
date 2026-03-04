@@ -89,47 +89,57 @@ someerr:
 }
 
 /**
- * @brief tty_init - open & setup terminal
- * @param descr (io) - port descriptor
- * !!! default settings are "8N1".
- * !!! If you want other, set it like `descr->format = "7O2"` between `sl_tty_new` and `sl_tty_open`
- * @return 0 if all OK, last error code or 1
+ * @brief sl_tty_fdescr - open terminal device and give it's file descriptor
+ * @param comdev - path to device
+ * @param speed - baudrate
+ * @param exclusive - ==1 for exclusive open
+ * @return fd or -1 in case of error
  */
-static int tty_init(sl_tty_t *descr){
+int sl_tty_fdescr(const char *comdev, const char *format, int speed, int exclusive){
+    if(!comdev || speed < 1) return -1;
     tcflag_t flags;
-    if(!parse_format(descr->format, &flags)) return 1;
-    if((descr->comfd = open(descr->portname, O_RDWR|O_NOCTTY)) < 0){
-        WARN(_("Can't use port %s"), descr->portname);
-        return globErr ? globErr : 1;
+    if(!parse_format(format, &flags)) return -1;
+    DBG("open");
+    int comfd = open(comdev, O_RDWR|O_NOCTTY);
+    if(comfd < 0){
+        WARN(_("Can't use port %s"), comdev);
+        return -1;
     }
-    if(ioctl(descr->comfd, TCGETS2, &descr->oldtty)){ // Get settings
+    DBG("fd=%d", comfd);
+    struct termios2 newtty;
+    if(ioctl(comfd, TCGETS2, &newtty)){ // Get settings
         WARN(_("Can't get old TTY settings"));
-        return globErr ? globErr : 1;
+        return -1;
     }
-    descr->tty = descr->oldtty;
-    descr->tty.c_lflag     = 0; // ~(ICANON | ECHO | ECHOE | ISIG)
-    descr->tty.c_iflag     = 0; // don't do any changes in input stream
-    descr->tty.c_oflag     = 0; // don't do any changes in output stream
-    descr->tty.c_cflag     = BOTHER | flags | CREAD | CLOCAL; // other speed, user format, RW, ignore line ctrl
-    descr->tty.c_ispeed = descr->speed;
-    descr->tty.c_ospeed = descr->speed;
-    descr->tty.c_cc[VMIN]  = 0;  // non-canonical mode
-    descr->tty.c_cc[VTIME] = 5;
-    if(ioctl(descr->comfd, TCSETS2, &descr->tty)){
+    DBG("change termios flags");
+    newtty.c_lflag     = 0; // ~(ICANON | ECHO | ECHOE | ISIG)
+    newtty.c_iflag     = 0; // don't do any changes in input stream
+    newtty.c_oflag     = 0; // don't do any changes in output stream
+    newtty.c_cflag     = BOTHER | flags | CREAD | CLOCAL; // other speed, user format, RW, ignore line ctrl
+    newtty.c_ispeed    = speed;
+    newtty.c_ospeed    = speed;
+    newtty.c_cc[VMIN]  = 0;  // non-canonical mode
+    newtty.c_cc[VTIME] = 1;
+    if(ioctl(comfd, TCSETS2, &newtty)){
         WARN(_("Can't apply new TTY settings"));
-        return globErr ? globErr : 1;
+        close(comfd);
+        return -1;
     }
-    ioctl(descr->comfd, TCGETS2, &descr->tty);
-    if(descr->tty.c_ispeed != (speed_t)descr->speed || descr->tty.c_ospeed != (speed_t)descr->speed){
-        WARN(_("Can't set speed %d, got ispeed=%d, ospeed=%d"), descr->speed, descr->tty.c_ispeed, descr->tty.c_ospeed);
-        descr->speed = descr->tty.c_ispeed;
+    DBG("OK, check");
+    if(ioctl(comfd, TCGETS2, &newtty)){ // Get settings
+        WARN(_("Can't get old TTY settings"));
+        return -1;
     }
-    // make exclusive open
-    if(descr->exclusive){
-        if(ioctl(descr->comfd, TIOCEXCL)){
+    if(exclusive){
+        DBG("make exclusive");
+        if(ioctl(comfd, TIOCEXCL)){
             WARN(_("Can't do exclusive open"));
-        }}
-    return 0;
+            close(comfd);
+            return -1;
+        }
+    }
+    DBG("device %s opened", comdev);
+    return comfd;
 }
 
 /**
@@ -138,13 +148,16 @@ static int tty_init(sl_tty_t *descr){
 void sl_tty_close(sl_tty_t **descr){
     if(descr == NULL || *descr == NULL) return;
     sl_tty_t *d = *descr;
-    if(d->comfd){
-        ioctl(d->comfd, TCSETS2, &d->oldtty); // return TTY to previous state
+    if(d->comfd > -1){
+        DBG("close");
         close(d->comfd);
     }
+    DBG("Free mem");
     FREE(d->portname);
     FREE(d->buf);
+    FREE(d->format);
     FREE(*descr);
+    DBG("tty closed");
 }
 
 /**
@@ -164,12 +177,28 @@ sl_tty_t *sl_tty_new(char *comdev, int speed, size_t bufsz){
         if(bufsz){
             descr->buf = MALLOC(char, bufsz+1);
             descr->bufsz = bufsz;
+            descr->comfd = -1;
+            DBG("sl_tty_t created");
             return descr;
         }else WARNX(_("Need non-zero buffer for TTY device"));
     }
     FREE(descr->portname);
     FREE(descr);
     return NULL;
+}
+
+/**
+ * @brief sl_tty_setformat - set format for just created tty object
+ * @param d - descriptor created with sl_tty_new
+ * @param format - string like "7O2" (maybe NULL for default, 8N1)
+ * @return FALSE if format is wrong
+ */
+int sl_tty_setformat(sl_tty_t *d, const char *format){
+    if(!d) return FALSE;
+    if(!format) return TRUE; // default format
+    if(!parse_format(format, NULL)) return FALSE;
+    d->format = strdup(format);
+    return TRUE;
 }
 
 /**
@@ -182,13 +211,27 @@ sl_tty_t *sl_tty_open(sl_tty_t *d, int exclusive){
     if(!d || !d->portname) return NULL;
     if(exclusive) d->exclusive = TRUE;
     else d->exclusive = FALSE;
-    if(tty_init(d)) return NULL;
+    DBG("ex: %d", exclusive);
+    int comfd = sl_tty_fdescr(d->portname, d->format, d->speed, d->exclusive);
+    if(comfd < 0) return NULL;
+    struct termios2 tty;
+    if(ioctl(comfd, TCGETS2, &tty)){ // Get settings
+        WARN(_("Can't get current TTY settings"));
+    }else{
+        if(d->speed != (int)tty.c_ispeed || d->speed != (int)tty.c_ospeed){
+            WARNX(_("Can't set exact speed %d"), d->speed);
+            d->speed = (int)tty.c_ispeed;
+        }
+    }
+    d->comfd = comfd;
+    DBG("sl_tty_t ready");
     return d;
 }
 
 static struct timeval tvdefault = {.tv_sec = 0, .tv_usec = 5000};
 /**
  * @brief sl_tty_tmout - set timeout for select() on reading
+ * // WARNING! This function changes timeout for ALL opened ports!
  * @param usec - microseconds of timeout
  * @return -1 if usec < 0, 0 if all OK
  */

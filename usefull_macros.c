@@ -308,22 +308,14 @@ char *sl_omitspacesr(const char *v){
  * BE CAREFULL! These functions aren't thread-safe!
 \******************************************************************************/
 // console flags
-#ifndef SL_USE_OLD_TTY
 static struct termios2 oldt, newt;
-#else
-static struct termios oldt, newt;
-#endif
 static int console_changed = 0;
 /**
  * @brief sl_restore_con - restore console to default mode
  */
 void sl_restore_con(){
     if(console_changed)
-#ifndef SL_USE_OLD_TTY
         ioctl(STDIN_FILENO, TCSETS2, &oldt);
-#else
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // return terminal to previous state
-#endif
     console_changed = 0;
 }
 
@@ -332,24 +324,12 @@ void sl_restore_con(){
  */
 void sl_setup_con(){
     if(console_changed) return;
-#ifndef SL_USE_OLD_TTY
         ioctl(STDIN_FILENO, TCGETS2, &oldt);
-#else
-    tcgetattr(STDIN_FILENO, &oldt);
-#endif
     newt = oldt;
     newt.c_lflag &= ~(ICANON | ECHO);
-#ifndef SL_USE_OLD_TTY
         if(ioctl(STDIN_FILENO, TCSETS2, &newt)){
-#else
-    if(tcsetattr(STDIN_FILENO, TCSANOW, &newt) < 0){
-#endif
         WARN(_("Can't setup console"));
-#ifndef SL_USE_OLD_TTY
         ioctl(STDIN_FILENO, TCSETS2, &oldt);
-#else
-        tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-#endif
         signals(1); //quit?
     }
     console_changed = 1;

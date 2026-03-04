@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2026-03-04 09:01+0300\n"
+        "POT-Creation-Date: 2026-03-04 17:30+0300\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,40 +116,40 @@ msgstr  "%s: необходим аргумент!"
 msgid   "Wrong argument \"%s\" of parameter \"%s\""
 msgstr  "Неправильный аргумент \"%s\" параметра \"%s\""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:154
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:132
 msgid   "Server disconnected"
 msgstr  "Сервер отключен"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:441
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:419
 msgid   "Can't start server handlers thread"
 msgstr  "Не могу запустить поток-обработчик сервера"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:513
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:491
 msgid   "Limit of connections reached"
 msgstr  "Достигнут предел соединений"
 
 #. check for RB overflow
 #. -1 - buffer empty (can't be), -2 - buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:557
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:558
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:535
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:536
 #, c-format
 msgid   "Server thread: ring buffer overflow for fd=%d"
 msgstr  "Поток сервера: переполнение буфера от fd=%d"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:572
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:550
 #, c-format
 msgid   "Server thread: can't write data to ringbuffer: overflow from fd=%d"
 msgstr  "Поток сервера: не могу сохранить данные в кольцевом буфере, "
         "переполнение от fd=%d"
 
 #. buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:584
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:562
 #, c-format
 msgid   "Server thread: buffer overflow from fd=%d"
 msgstr  "Поток сервера: переполнение буфера от fd=%d"
 
 #. never reached
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:681
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:714
 #, c-format
 msgid   "Unsupported socket type %d"
 msgstr  "Неподдерживаемый тип сокета %d"
@@ -161,36 +161,43 @@ msgid   "Wrong USART format \"%s\"; use NPS, where N: 5..8; P: N/E/O/1/0, S: "
 msgstr  "Неправильный формат USART \"%s\"; нужен NPS, где N: 5..8; P: N/E/O/"
         "1/0, S: 1/2"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:102
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:105
 #, c-format
 msgid   "Can't use port %s"
 msgstr  "Не могу использовать порт %s"
 
 #. Get settings
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:106
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:111
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:130
 msgid   "Can't get old TTY settings"
 msgstr  "Не могу получить действующие настройки порта"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:119
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:124
 msgid   "Can't apply new TTY settings"
 msgstr  "Не могу сменить настройки порта"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:124
-#, c-format
-msgid   "Can't set speed %d, got ispeed=%d, ospeed=%d"
-msgstr  "Не могу сменить скорость на %d; ispeed=%d, ospeed=%d"
-
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:130
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:136
 msgid   "Can't do exclusive open"
 msgstr  "Не могу перевести порт в эксклюзивный режим"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:162
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:175
 msgid   "Port name is missing"
 msgstr  "Отсутствует имя порта"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:168
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:183
 msgid   "Need non-zero buffer for TTY device"
 msgstr  "Для последовательного устройства требуется буфер ненулевого размера"
+
+#. Get settings
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:219
+#, fuzzy
+msgid   "Can't get current TTY settings"
+msgstr  "Не могу получить действующие настройки порта"
+
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/term2.c:222
+#, fuzzy, c-format
+msgid   "Can't set exact speed %d"
+msgstr  "Не могу выполнить stat %s"
 
 #: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:194
 msgid   "Can't open /dev/random"
@@ -226,6 +233,8 @@ msgstr  "Не могу закрыть mmap'нутый файл"
 msgid   "Can't munmap"
 msgstr  "Не могу munmap"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:347
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:331
 msgid   "Can't setup console"
 msgstr  "Не могу настроить консоль"
+
+#, c-format

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 4.0)
 set(PROJ usefull_macros)
-set(MINOR_VERSION "4")
+set(MINOR_VERSION "5")
 set(MID_VERSION "3")
 set(MAJOR_VERSION "0")
 set(VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")
@@ -50,16 +50,6 @@ message("Build type: ${CMAKE_BUILD_TYPE}")
 
 # here is one of two variants: all .c in directory or .c files in list
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SOURCES)
-
-get_filename_component(term_c ${CMAKE_CURRENT_SOURCE_DIR}/term.c ABSOLUTE)
-if(DEFINED USE_OLD_TTY OR DEFINED SL_USE_OLD_TTY)
-	get_filename_component(term_c ${CMAKE_CURRENT_SOURCE_DIR}/term2.c ABSOLUTE)
-	add_definitions(-DSL_USE_OLD_TTY)
-endif()
-
-message("remove ${term_c}")
-list(REMOVE_ITEM SOURCES ${term_c})
-
 
 # directory should contain dir locale/ru for gettext translations
 set(LCPATH ${CMAKE_SOURCE_DIR}/locale/ru)

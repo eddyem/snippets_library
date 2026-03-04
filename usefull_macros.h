@@ -22,11 +22,7 @@
 #pragma once
 
 #include <stdio.h>
-#ifdef SL_USE_OLD_TTY
-#include <termios.h>        // termios
-#else
 #include <asm-generic/termbits.h>
-#endif
 
 #include <errno.h>          // errno
 #include <netdb.h>          // struct addrinfo
@@ -167,42 +163,25 @@ int sl_canwrite(int fd);
 /******************************************************************************\
                          The original term.h
 \******************************************************************************/
-#ifdef SL_USE_OLD_TTY
-typedef struct {
-    char *portname;         // device filename (should be freed before structure freeing)
-    int speed;              // baudrate in human-readable format
-    tcflag_t baudrate;      // baudrate (B...)
-    struct termios oldtty;  // TTY flags for previous port settings
-    struct termios tty;     // TTY flags for current settings
-    int comfd;              // TTY file descriptor
-    char *buf;              // buffer for data read
-    size_t bufsz;           // size of buf
-    size_t buflen;          // length of data read into buf
-    int exclusive;          // should device be exclusive opened
-} sl_tty_t;
-
-tcflag_t sl_tty_convspd(int speed);
-#else
 typedef struct {
     char *portname;         // device filename (should be freed before structure freeing)
     int speed;              // baudrate in human-readable format
     char *format;           // format like 8N1
-    struct termios2 oldtty; // TTY flags for previous port settings
-    struct termios2 tty;    // TTY flags for current settings
     int comfd;              // TTY file descriptor
     char *buf;              // buffer for data read
     size_t bufsz;           // size of buf
     size_t buflen;          // length of data read into buf
     int exclusive;          // should device be exclusive opened
 } sl_tty_t;
-#endif
 
-void sl_tty_close(sl_tty_t **descr);
+int sl_tty_fdescr(const char *comdev, const char *format, int speed, int exclusive);
 sl_tty_t *sl_tty_new(char *comdev, int speed, size_t bufsz);
+int sl_tty_setformat(sl_tty_t *d, const char *format);
 sl_tty_t *sl_tty_open(sl_tty_t *d, int exclusive);
-int sl_tty_read(sl_tty_t *descr);
 int sl_tty_tmout(double usec);
+int sl_tty_read(sl_tty_t *descr);
 int sl_tty_write(int comfd, const char *buff, size_t length);
+void sl_tty_close(sl_tty_t **descr);
 
 /******************************************************************************\
                                  Logging
@@ -481,7 +460,7 @@ typedef enum{
 struct sl_sock;
 
 // opent socket and return its file descriptor
-int sl_sock_getfd(sl_socktype_e type, const char *path);
+int sl_sock_open(sl_socktype_e type, const char *path, int isserver, int ai_socktype);
 
 // default max clients amount
 #define SL_DEF_MAXCLIENTS   (32)

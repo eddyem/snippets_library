@@ -48,8 +48,13 @@ void signals(int sig){
     LOGERR("Exit with status %d", sig);
     if(GP && GP->pidfile) // remove unnesessary PID file
         unlink(GP->pidfile);
+    DBG("restore console");
     sl_restore_con();
-    if(dev) sl_tty_close(&dev);
+    if(dev){
+        DBG("Close serial device");
+        sl_tty_close(&dev);
+    }
+    DBG("OK, exit");
     exit(sig);
 }
 
@@ -100,12 +105,16 @@ int main(int argc, char *argv[]){
         printf("String so2=%s\n", GP->so2);
     }
     if(GP->device){
-        LOGDBG("Try to open serial %s", GP->device);
+        LOGMSG("Try to open serial %s at speed %d", GP->device, GP->speed);
         dev = sl_tty_new(GP->device, GP->speed, 4096);
         if(dev) dev = sl_tty_open(dev, GP->exclusive);
         if(!dev){
             LOGERR("Can't open %s with speed %d. Exit.", GP->device, GP->speed);
             signals(0);
+        }
+        if(GP->speed != dev->speed){
+            LOGERR("Can't set exact speed! Opened %s at speed %d", dev->portname, dev->speed);
+            ERRX("Can't set speed %d (try %d)", GP->speed, dev->speed);
         }
     }
     if(!dev) return 0;

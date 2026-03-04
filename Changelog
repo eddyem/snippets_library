@@ -1,3 +1,18 @@
+Wed Mar  4 14:18:15 MSK 2026
+VERSION 0.3.4:
+- fixed wrong UNIX-sockets names
+- code changed for `-pedantic-errors`
+VERSION 0.3.5
+- add int sl_sock_open(sl_socktype_e type, const char *path, int isserver, int ai_socktype);
+      open socket, bind or connect it and return descriptor
+- deprecation of SL_USE_OLD_TTY
+- add int sl_tty_fdescr(const char *comdev, const char *format, int speed, int exclusive)
+      open and configure serial port and return descriptor
+- remove both fields `struct termios2` from `sl_tty_t`
+- add int sl_tty_setformat(sl_tty_t *d, const char *format)
+      change default format "8N1" to given
+
+
 Thu Nov  6 11:25:07 MSK 2025
 VERSION 0.3.4:
 add data type:
