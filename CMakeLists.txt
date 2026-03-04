@@ -8,7 +8,7 @@ set(VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")
 project(${PROJ} VERSION ${VERSION} LANGUAGES C)
 
 # default flags
-set(CMAKE_C_FLAGS "${CFLAGS} -O2")
+set(CMAKE_C_FLAGS "${CFLAGS} -O2 -pedantic-errors")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS} -Wextra -Wall -Werror -W")
 set(CMAKE_COLOR_MAKEFILE ON)

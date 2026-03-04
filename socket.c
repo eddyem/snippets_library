@@ -469,7 +469,9 @@ static void *serverthread(void _U_ *d){
     // ZERO - listening server socket
     poll_set[0].fd = sockfd;
     poll_set[0].events = POLLIN;
-    // disconnect client
+    // disconnect client (no way to make this function non-nested)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
     void disconnect_(sl_sock_t *c, int N){
         DBG("Disconnect client \"%s\" (fd=%d)", c->IP, c->fd);
         if(s->disconnect_handler) s->disconnect_handler(c);
@@ -496,6 +498,7 @@ static void *serverthread(void _U_ *d){
         pthread_mutex_unlock(&c->mutex);
         --nfd;
     }
+#pragma GCC diagnostic pop
     // allocate buffer with size not less than RB size
     size_t bufsize = s->buffer->length; // as RB should be 1 byte less, this is OK
     uint8_t *buf = MALLOC(uint8_t, bufsize);

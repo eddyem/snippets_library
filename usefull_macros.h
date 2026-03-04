@@ -453,7 +453,7 @@ typedef struct{
     double magick;  // -Inf - to distinguish it from sl_sock_*_t
     int n;          // if n < 0 there was no any number in `key`
 } sl_sock_keyno_t;
-#define SL_SOCK_KEYNO_DEFAULT       (sl_sock_keyno_t){.magick = -INFINITY, .n = -1}
+#define SL_SOCK_KEYNO_DEFAULT       {.magick = -INFINITY, .n = -1}
 void sl_sock_keyno_init(sl_sock_keyno_t*);
 int sl_sock_keyno_check(sl_sock_keyno_t*);
 

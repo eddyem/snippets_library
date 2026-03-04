@@ -191,6 +191,18 @@ void *get_aptr(void *paptr, sl_argtype_e type){
     return aptr[i - 1];
 }
 
+static int cmpstringp(const void *p1, const void *p2){
+    if(!p1 || !p2) return 0;
+    const char *str1 = * (char * const *) p1, *str2 = * (char * const *) p2;
+    if(!str1 && !str2) return 0;
+    else if(!str1) return 1;
+    else if(!str2) return -1;
+    return strcmp(str1, str2);
+}
+static int cmpcharp(const void *p1, const void *p2){
+    return (int)(*(char * const)p1 - *(char *const)p2);
+}
+
 /**
  * @brief sl_parseargs_hf - parse arguments with user help funtion
  * @param argc - amount of arguments
@@ -246,17 +258,6 @@ void sl_parseargs_hf(int *argc, char ***argv, sl_option_t *options, void (*helpf
         }
     }
     // sort all lists & check for repeating
-    int cmpstringp(const void *p1, const void *p2){
-        if(!p1 || !p2) return 0;
-        const char *str1 = * (char * const *) p1, *str2 = * (char * const *) p2;
-        if(!str1 && !str2) return 0;
-        else if(!str1) return 1;
-        else if(!str2) return -1;
-        return strcmp(str1, str2);
-    }
-    int cmpcharp(const void *p1, const void *p2){
-        return (int)(*(char * const)p1 - *(char *const)p2);
-    }
     qsort(longlist, optsize, sizeof(char *), cmpstringp);
     qsort(shortlist,optsize, sizeof(char), cmpcharp);
     char *prevl = longlist[0], prevshrt = shortlist[0];
@@ -336,7 +337,10 @@ void sl_parseargs_hf(int *argc, char ***argv, sl_option_t *options, void (*helpf
                 type = "string";
                 break;
             case arg_function:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
                 result = ((sl_argfn_t)aptr)(optarg);
+#pragma GCC diagnostic pop
                 break;
         }
         if(!result){
@@ -460,6 +464,49 @@ void sl_showhelp(int oindex, sl_option_t *options){
     exit(-1);
 }
 
+static int findsubopt(char *par, sl_suboption_t *so){
+    int idx = 0;
+    if(!par) return -1;
+    while(so[idx].name){
+        if(strcasecmp(par, so[idx].name) == 0) return idx;
+        ++idx;
+    }
+    return -1; // badarg
+}
+static int opt_setarg(sl_suboption_t *so, int idx, char *val){
+    sl_suboption_t *soptr = &so[idx];
+    int result = FALSE;
+    void *aptr = soptr->argptr;
+    switch(soptr->type){
+    default:
+    case arg_none:
+        if(soptr->argptr) *((int*)aptr) += 1; // increment value
+        result = TRUE;
+        break;
+    case arg_int:
+        result = myatoll(aptr, val, arg_int);
+        break;
+    case arg_longlong:
+        result = myatoll(aptr, val, arg_longlong);
+        break;
+    case arg_double:
+        result = myatod(aptr, val, arg_double);
+        break;
+    case arg_float:
+        result = myatod(aptr, val, arg_float);
+        break;
+    case arg_string:
+        result = (*((void**)aptr) = (void*)strdup(val)) != NULL;
+        break;
+    case arg_function:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+        result = ((sl_argfn_t)aptr)(val);
+#pragma GCC diagnostic pop
+        break;
+    }
+    return result;
+}
 /**
  * @brief sl_get_suboption - get suboptions from parameter string
  * @param str - parameter string
@@ -467,46 +514,6 @@ void sl_showhelp(int oindex, sl_option_t *options){
  * @return TRUE if all OK
  */
 int sl_get_suboption(char *str, sl_suboption_t *opt){
-    int findsubopt(char *par, sl_suboption_t *so){
-        int idx = 0;
-        if(!par) return -1;
-        while(so[idx].name){
-            if(strcasecmp(par, so[idx].name) == 0) return idx;
-            ++idx;
-        }
-        return -1; // badarg
-    }
-    int opt_setarg(sl_suboption_t *so, int idx, char *val){
-        sl_suboption_t *soptr = &so[idx];
-        int result = FALSE;
-        void *aptr = soptr->argptr;
-        switch(soptr->type){
-            default:
-            case arg_none:
-                if(soptr->argptr) *((int*)aptr) += 1; // increment value
-                result = TRUE;
-            break;
-            case arg_int:
-                result = myatoll(aptr, val, arg_int);
-            break;
-            case arg_longlong:
-                result = myatoll(aptr, val, arg_longlong);
-            break;
-            case arg_double:
-                result = myatod(aptr, val, arg_double);
-            break;
-            case arg_float:
-                result = myatod(aptr, val, arg_float);
-            break;
-            case arg_string:
-                result = (*((void**)aptr) = (void*)strdup(val)) != NULL;
-            break;
-            case arg_function:
-                result = ((sl_argfn_t)aptr)(val);
-            break;
-        }
-        return result;
-    }
     char *tok;
     int ret = FALSE;
     char *tmpbuf;

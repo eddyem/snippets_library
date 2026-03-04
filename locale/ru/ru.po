@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2025-11-06 14:57+0300\n"
+        "POT-Creation-Date: 2026-03-04 09:01+0300\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -76,80 +76,80 @@ msgstr  "Ключ '%s' требует значения\n"
 msgid   "Can't use multiple args with arg_none!"
 msgstr  "Массив параметров не может иметь тип arg_none!"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:267
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:268
 #, c-format
 msgid   "double long arguments: --%s"
 msgstr  "дублирующийся длинный параметр: --%s"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:273
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:274
 #, c-format
 msgid   "double short arguments: -%c"
 msgstr  "дублирующийся короткий параметр: -%c"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:343
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:347
 #, c-format
 msgid   "Need argument with %s type\n"
 msgstr  "Необходим аргумент с типом %s\n"
 
 #. print only one message
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:435
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:439
 msgid   "sl_showhelp(): option index out of range"
 msgstr  "sl_showhelp(): индекс опции вне допустимого диапазона"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:441
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:445
 #, c-format
 msgid   "Usage: %s [arguments]\n"
 msgstr  "Использование: %s [аргументы]\n"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:528
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:535
 #, c-format
 msgid   "Wrong parameter: %s"
 msgstr  "Неправильный параметр: %s"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:532
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:539
 #, c-format
 msgid   "%s: need argument!"
 msgstr  "%s: необходим аргумент!"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:536
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:543
 #, c-format
 msgid   "Wrong argument \"%s\" of parameter \"%s\""
 msgstr  "Неправильный аргумент \"%s\" параметра \"%s\""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:147
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:154
 msgid   "Server disconnected"
 msgstr  "Сервер отключен"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:434
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:441
 msgid   "Can't start server handlers thread"
 msgstr  "Не могу запустить поток-обработчик сервера"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:503
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:513
 msgid   "Limit of connections reached"
 msgstr  "Достигнут предел соединений"
 
 #. check for RB overflow
 #. -1 - buffer empty (can't be), -2 - buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:547
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:548
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:557
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:558
 #, c-format
 msgid   "Server thread: ring buffer overflow for fd=%d"
 msgstr  "Поток сервера: переполнение буфера от fd=%d"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:562
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:572
 #, c-format
 msgid   "Server thread: can't write data to ringbuffer: overflow from fd=%d"
 msgstr  "Поток сервера: не могу сохранить данные в кольцевом буфере, "
         "переполнение от fd=%d"
 
 #. buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:574
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:584
 #, c-format
 msgid   "Server thread: buffer overflow from fd=%d"
 msgstr  "Поток сервера: переполнение буфера от fd=%d"
 
 #. never reached
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:664
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:681
 #, c-format
 msgid   "Unsupported socket type %d"
 msgstr  "Неподдерживаемый тип сокета %d"

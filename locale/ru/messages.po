@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-06 15:03+0300\n"
+"POT-Creation-Date: 2026-03-04 09:05+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -77,79 +77,79 @@ msgstr ""
 msgid "Can't use multiple args with arg_none!"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:267
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:268
 #, c-format
 msgid "double long arguments: --%s"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:273
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:274
 #, c-format
 msgid "double short arguments: -%c"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:343
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:347
 #, c-format
 msgid "Need argument with %s type\n"
 msgstr ""
 
 #. print only one message
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:435
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:439
 msgid "sl_showhelp(): option index out of range"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:441
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:445
 #, c-format
 msgid "Usage: %s [arguments]\n"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:528
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:535
 #, c-format
 msgid "Wrong parameter: %s"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:532
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:539
 #, c-format
 msgid "%s: need argument!"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:536
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/parseargs.c:543
 #, c-format
 msgid "Wrong argument \"%s\" of parameter \"%s\""
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:147
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:154
 msgid "Server disconnected"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:434
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:441
 msgid "Can't start server handlers thread"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:503
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:513
 msgid "Limit of connections reached"
 msgstr ""
 
 #. check for RB overflow
 #. -1 - buffer empty (can't be), -2 - buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:547
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:548
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:557
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:558
 #, c-format
 msgid "Server thread: ring buffer overflow for fd=%d"
 msgstr ""
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:562
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:572
 #, c-format
 msgid "Server thread: can't write data to ringbuffer: overflow from fd=%d"
 msgstr ""
 
 #. buffer overflow
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:574
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:584
 #, c-format
 msgid "Server thread: buffer overflow from fd=%d"
 msgstr ""
 
 #. never reached
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:664
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/socket.c:681
 #, c-format
 msgid "Unsupported socket type %d"
 msgstr ""
