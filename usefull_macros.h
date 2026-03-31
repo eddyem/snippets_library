@@ -329,6 +329,8 @@ void WEAK sl_iffound_deflt(pid_t pid);
 void sl_check4running(char *selfname, char *pidfilename);
 // read name of process by its PID
 char *sl_getPSname(pid_t pid);
+// daemonize: reopen stdin/out/err as /dev/null, chdir to /, umask(0)
+int sl_daemonize(); // return -1 if failed, 0 on OK
 
 /******************************************************************************\
                          The original fifo_lifo.h

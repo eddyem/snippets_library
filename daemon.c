@@ -21,6 +21,7 @@
 
 #include <stdio.h>      // printf, fopen, ...
 #include <unistd.h>     // getpid
+#include <signal.h>
 #include <stdio.h>      // perror
 #include <sys/types.h>  // opendir
 #include <dirent.h>     // opendir
@@ -73,42 +74,19 @@ void WEAK sl_iffound_deflt(pid_t pid){
 /**
  * check wether there is a same running process
  * exit if there is a running process or error
- * Checking have 3 steps:
- *      1) lock executable file
- *      2) check pidfile (if you run a copy?)
- *      3) check /proc for executables with the same name (no/wrong pidfile)
- * @param selfname - argv[0] or NULL for non-locking
+ * Checking have 2 steps:
+ *      1) check pidfile and its owner (if you run a copy?)
+ *      2) check /proc for executables with the same name (no/wrong pidfile)
+ * @param selfname - deprecated, maybe remove in next versions
  * @param pidfilename - name of pidfile or NULL if none
  */
-void sl_check4running(char *selfname, char *pidfilename){
+void sl_check4running(char _U_ *selfname, char *pidfilename){
     DIR *dir;
-    FILE *pidfile, *fself;
+    FILE *pidfile;
     struct dirent *de;
     struct stat s_buf;
     pid_t pid = 0, self;
-    struct flock fl;
     char *name, *myname;
-    if(selfname){ // block self
-        fself = fopen(selfname, "r"); // open self binary to lock
-        if(!fself){
-            WARN("fopen()");
-            goto selfpid;
-        }
-        memset(&fl, 0, sizeof(struct flock));
-        fl.l_type = F_WRLCK;
-        if(fcntl(fileno(fself), F_GETLK, &fl) == -1){ // check locking
-            WARN("fcntl()");
-            goto selfpid;
-        }
-        if(fl.l_type != F_UNLCK){ // file is locking - exit
-            sl_iffound_deflt(fl.l_pid);
-        }
-        fl.l_type = F_RDLCK;
-        if(fcntl(fileno(fself), F_SETLKW, &fl) == -1){
-            WARN("fcntl()");
-        }
-    }
-    selfpid:
     self = getpid(); // get self PID
     if(!(dir = opendir(PROC_BASE))){ // open /proc directory
         ERR(PROC_BASE);
@@ -120,9 +98,11 @@ void sl_check4running(char *selfname, char *pidfilename){
     if(pidfilename && stat(pidfilename, &s_buf) == 0){ // pidfile exists
         pidfile = fopen(pidfilename, "r");
         if(pidfile){
-            if(fscanf(pidfile, "%d", &pid) > 0){ // read PID of (possibly) running process
-                if((name = sl_getPSname(pid)) && strncmp(name, myname, 255) == 0)
+            if(fscanf(pidfile, "%d", &pid) == 1){ // read PID of (possibly) running process
+                if((name = sl_getPSname(pid)) && strncmp(name, myname, 255) == 0){
                     sl_iffound_deflt(pid);
+                    exit(1); // run `exit` if user forgot to do it himself
+                }
             }
             fclose(pidfile);
         }
@@ -131,8 +111,10 @@ void sl_check4running(char *selfname, char *pidfilename){
     while((de = readdir(dir))){ // scan /proc
         if(!(pid = (pid_t)atoi(de->d_name)) || pid == self) // pass non-PID files and self
             continue;
-        if((name = sl_getPSname(pid)) && strncmp(name, myname, 255) == 0)
+        if((name = sl_getPSname(pid)) && strncmp(name, myname, 255) == 0){
             sl_iffound_deflt(pid);
+            exit(1);
+        }
     }
     closedir(dir);
     free(myname);
@@ -142,4 +124,25 @@ void sl_check4running(char *selfname, char *pidfilename){
         fprintf(pidfile, "%d\n", self); // write self PID to pidfile
         fclose(pidfile);
     }
+}
+
+/**
+ * @brief sl_daemonize - prepare for daemonize:
+ * - close stdin/out/err and reopen to /dev/null
+ * - croot /
+ * - umask(0)
+ * - ignore SIGHUP
+ * @return non-zero if failed
+ */
+int sl_daemonize(){
+    if(chdir("/")) return -1;
+    umask(0);
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+    if(open("/dev/null", O_RDWR) < 0) return -1;
+    if(dup(0) < 0) return -1;
+    if(dup(0) < 0) return -1;
+    if(SIG_ERR == signal(SIGHUP, SIG_IGN)) return -1;
+    return 0;
 }
