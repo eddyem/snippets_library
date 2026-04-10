@@ -716,7 +716,7 @@ int sl_sock_open(sl_socktype_e type, const char *path, int isserver, int ai_sock
         break;
     }
     for(struct addrinfo *p = res; p; p = p->ai_next){
-        if((sock = socket(p->ai_family, p->ai_socktype|SOCK_NONBLOCK, p->ai_protocol)) < 0) continue;
+        if((sock = socket(p->ai_family, p->ai_socktype/*|SOCK_NONBLOCK*/, p->ai_protocol)) < 0) continue;
         DBG("Try proto %d, type %d, socktype %d", p->ai_protocol, p->ai_socktype, p->ai_socktype);
         if(isserver){
             int reuseaddr = 1;
