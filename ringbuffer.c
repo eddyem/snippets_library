@@ -258,7 +258,7 @@ void sl_RB_clearbuf(sl_ringbuffer_t *b){
 /**
  * @brief sl_RB_writestr - write FULL string `s` to buffer (without trailing zero!)
  * @param b - rb
- * @param s - string
+ * @param s - string !!! can be modified if have no '\n' on end !!!
  * @return amount of bytes written (strlen of s) or 0
  */
 size_t sl_RB_writestr(sl_ringbuffer_t *b, char *s){

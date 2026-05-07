@@ -1,3 +1,8 @@
+Thu May  7 14:39:35 MSK 2026
+VERSION 0.3.5
+- added Readme.md
+- some minor bugs fixed
+
 Wed Mar  4 14:18:15 MSK 2026
 VERSION 0.3.4:
 - fixed wrong UNIX-sockets names

@@ -8,7 +8,7 @@ set(VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")
 project(${PROJ} VERSION ${VERSION} LANGUAGES C)
 
 # default flags
-set(CMAKE_C_FLAGS "${CFLAGS} -O2 -pedantic-errors")
+set(CMAKE_C_FLAGS "$ENV{CFLAGS} -O2 -pedantic-errors")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS}")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS} -Wextra -Wall -Werror -W")
 set(CMAKE_COLOR_MAKEFILE ON)
@@ -35,15 +35,15 @@ if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-	add_definitions(-DEBUG)
-	set(CMAKE_VERBOSE_MAKEFILE true)
-	if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-		message("install to ${CMAKE_CURRENT_SOURCE_DIR}/install ")
-		set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/install)
-	endif()
-	set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS_DEBUG})
+    add_definitions(-DEBUG)
+    set(CMAKE_VERBOSE_MAKEFILE true)
+    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        message("install to ${CMAKE_CURRENT_SOURCE_DIR}/install ")
+        set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/install)
+    endif()
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS_DEBUG})
 else()
-	set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS_RELEASE})
+    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS_RELEASE})
 endif()
 
 message("Build type: ${CMAKE_BUILD_TYPE}")
@@ -97,7 +97,7 @@ link_directories(${${PROJ}_LIBRARY_DIRS})
 add_definitions(-DLOCALEDIR=\"${LOCALEDIR}\"
         -DPACKAGE_VERSION=\"${VERSION}\" -DGETTEXT_PACKAGE=\"${PROJ}\"
         -DMINOR_VERSION=\"${MINOR_VERSION}\" -DMID_VERSION=\"${MID_VERSION}\"
-        -DMAJOR_VERSION=\"${MAJOR_VESION}\")
+        -DMAJOR_VERSION=\"${MAJOR_VERSION}\")
 
 # -l
 target_link_libraries(${PROJ} ${${PROJ}_LIBRARIES} -lm)

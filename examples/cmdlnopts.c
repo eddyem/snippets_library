@@ -87,7 +87,7 @@ glob_pars *parse_args(int argc, char **argv){
     void *ptr;
     ptr = memcpy(&G, &Gdefault, sizeof(G)); assert(ptr);
     size_t hlen = 1024;
-    char helpstring[1024], *hptr = helpstring;
+    static char helpstring[1024], *hptr = helpstring;
     snprintf(hptr, hlen, "Usage: %%s [args]\n\n\tWhere args are:\n");
     // format of help: "Usage: progname [args]\n"
     sl_helpstring(helpstring);

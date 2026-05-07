@@ -89,8 +89,8 @@ void sl_sock_delete(sl_sock_t **sock){
     sl_sock_t *ptr = *sock;
     ptr->connected = 0;
     if(ptr->rthread){
-        DBG("Cancel thread");
-        pthread_cancel(ptr->rthread);
+        DBG("Join thread");
+        pthread_join(ptr->rthread, NULL);
     }
     DBG("close fd=%d", ptr->fd);
     if(ptr->fd > -1) close(ptr->fd);
@@ -136,12 +136,13 @@ static void *clientrbthread(void *d){
         do{
             ssize_t written = sl_RB_write(s->buffer, (uint8_t*)buf + got, n-got);
             //DBG("Put %zd to buffer, got=%zd, n=%zd", written, got, n);
-            if(got > n) return NULL;
+            if(got > n) goto errex;
             if(written > 0) got += written;
         }while(got != n);
         //DBG("All messsages done");
     }
 errex:
+    FREE(buf);
     s->rthread = 0;
     s->connected = FALSE;
     return NULL;
@@ -259,6 +260,7 @@ void url_decode(char *str) {
 
 static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str);
 
+// TODO: handle Content-Length correctly
 // parser of web-encoded data by POST/GET:
 static sl_sock_hresult_e parse_post_data(sl_sock_t *c, char *str){
     if (!c || !str) return RESULT_BADKEY;
@@ -462,6 +464,8 @@ static void *serverthread(void _U_ *d){
         c->lineno = 0;
         c->gotemptyline = 0;
         sl_RB_clearbuf(c->buffer);
+        DBG("unlock fd=%d", c->fd);
+        pthread_mutex_unlock(&c->mutex);
         // now move all data of last client to disconnected
         if(nfd > 2 && N != nfd - 1){ // don't move the only or the last
             DBG("lock fd=%d", clients[nfd-1]->fd);
@@ -472,8 +476,6 @@ static void *serverthread(void _U_ *d){
             pthread_mutex_unlock(&clients[N]->mutex); // now N is nfd-1
             poll_set[N] = poll_set[nfd - 1];
         }
-        DBG("unlock fd=%d", c->fd);
-        pthread_mutex_unlock(&c->mutex);
         --nfd;
     }
 #pragma GCC diagnostic pop
@@ -861,7 +863,7 @@ ssize_t sl_sock_sendbinmessage(sl_sock_t *socket, const uint8_t *msg, size_t l){
         return l;
     }
     DBG("send to fd=%d message with len=%zd (%s)", socket->fd, l, msg);
-    while(socket && socket->connected && !sl_canwrite(socket->fd));
+    while(socket && socket->connected && 1 != sl_canwrite(socket->fd));
     if(!socket || !socket->connected) return -1;
     DBG("lock");
     pthread_mutex_lock(&socket->mutex);

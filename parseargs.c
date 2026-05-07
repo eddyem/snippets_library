@@ -182,6 +182,7 @@ void *get_aptr(void *paptr, sl_argtype_e type){
         break;*/
     }
     aptr = realloc(aptr, (i + 1) * sizeof(void*));
+    if(!aptr) ERR("realloc()");
     *((void***)paptr) = aptr;
     aptr[i] = NULL;
     if(sz){
