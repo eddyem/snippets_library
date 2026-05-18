@@ -1,4 +1,4 @@
-# `libusefull_macros`  A collection of useful C snippets for Linux
+# `libusefull_macros` - A collection of useful C snippets for Linux
 
 **Version:** 0.3.5  
 **Author:** Edward V. Emelianov (<edward.emelianoff@gmail.com>)  
@@ -47,14 +47,14 @@ Linux application development. It covers:
 
 - Colored, locale-aware terminal output
 - Safe memory allocation and memory-mapped file I/O
-- GNU `getopt_long`-style command-line argument parsing with typesafe callbacks
-- INIlike configuration file reading/writing
-- Daemonization with PIDfile management
-- Threadsafe ring buffer for producerconsumer patterns
+- GNU `getopt_long`-style command-line argument parsing with type-safe callbacks
+- INI-like configuration file reading/writing
+- Daemonization with PID-file management
+- Thread-safe ring buffer for producer-consumer patterns
 - FIFO/LIFO linked list
-- TCP and UNIX socket server/client framework with builtin HTTP parsing and keyvalue handler dispatch
-- Serial port (TTY) management with nonstandard baud rates
-- Filebased logging with multiple severity levels
+- TCP and UNIX socket server/client framework with built-in HTTP parsing and key-value handler dispatch
+- Serial port (TTY) management with non-standard baud rates
+- File-based logging with multiple severity levels
 - `gettext` integration for internationalization
 
 All public identifiers are prefixed with `sl_` (for "snippets library") to avoid naming collisions.
@@ -214,7 +214,7 @@ MALLOC(type, size)      // allocate without declaration
 FREE(ptr)               // free and set to NULL
 ```
 
-**Memorymapped files:**
+**Memory-mapped files:**
 
 ```c
 typedef struct { char *data; size_t len; } sl_mmapbuf_t;
@@ -222,7 +222,7 @@ sl_mmapbuf_t *sl_mmap(char *filename);
 void sl_munmap(sl_mmapbuf_t *b);
 ```
 
-Maps a file readonly into memory; `sl_munmap` unmaps and frees the structure.
+Maps a file read-only into memory; `sl_munmap` unmaps and frees the structure.
 
 **System memory query:**
 
@@ -267,12 +267,12 @@ pointer may be `NULL` to only check validity.
 
 ### Console / Terminal I/O
 
-For noncanonical, noecho terminal input:
+For non-canonical, no-echo terminal input:
 
 ```c
 void sl_setup_con(void);     // switch terminal to raw mode
 void sl_restore_con(void);   // restore original terminal settings
-int sl_read_con(void);       // nonblocking read (0 if no key)
+int sl_read_con(void);       // non-blocking read (0 if no key)
 int sl_getchar(void);        // blocking read of one character
 ```
 
@@ -284,7 +284,7 @@ int ch = sl_getchar();
 sl_restore_con();
 ```
 
-**Important:** These functions are **not threadsafe**  they use a global `struct termios2`.
+**Important:** These functions are **not thread-safe** - they use a global `struct termios2`.
 
 ---
 
@@ -333,7 +333,7 @@ Built on top of `getopt_long`. Supports:
 
 - Short and long options
 - Required, optional, and no arguments
-- Multiple occurrences of the same option (multiparameters)
+- Multiple occurrences of the same option (multi-parameters)
 - Six data types: `int`, `long long`, `double`, `float`, `char*`, and function callback
 - Automatic help generation
 
@@ -343,7 +343,7 @@ Built on top of `getopt_long`. Supports:
 typedef struct {
     const char *name;       // long option (NULL for short-only)
     sl_hasarg_e has_arg;    // NO_ARGS, NEED_ARG, OPT_ARG, or MULT_PAR
-    int *flag;              // NULL  return val; else set *flag = val
+    int *flag;              // NULL - return val; else set *flag = val
     int val;                // short option character or flag value
     sl_argtype_e type;      // arg_int, arg_longlong, arg_double, arg_float,
                             // arg_string, arg_function
@@ -368,7 +368,7 @@ void sl_showhelp(int oindex, sl_option_t *options);
 void sl_helpstring(char *s);  // customize help header
 ```
 
-After calling `sl_parseargs`, `argc` and `argv` are updated to point to remaining nonoption
+After calling `sl_parseargs`, `argc` and `argv` are updated to point to remaining non-option
 arguments.
 
 **Example:**
@@ -385,14 +385,14 @@ sl_option_t opts[] = {
 int main(int argc, char **argv) {
     sl_init();
     sl_parseargs(&argc, &argv, opts);
-    // argc, argv now contain nonoption arguments
+    // argc, argv now contain non-option arguments
 }
 ```
 
-**Multiparameters** (`MULT_PAR`): Options that may appear multiple times. The library allocates a
-`NULL`terminated array of pointers, each pointing to a newly allocated value. For `arg_string`,
+**Multi-parameters** (`MULT_PAR`): Options that may appear multiple times. The library allocates a
+`NULL`-terminated array of pointers, each pointing to a newly allocated value. For `arg_string`,
 each element is a pointer to a `strdup`'d string; for numeric types, each is a pointer to a
-heapallocated number.
+heap-allocated number.
 
 **Function callback** (`arg_function`): The callback must have signature `int (*fn)(void *arg)` and
 receives a `strdup`'d argument string.
@@ -404,7 +404,7 @@ than the default `sl_showhelp` (which calls `exit(-1)`).
 
 ### Configuration Files
 
-Reads keyvalue pairs from a file and treats them as commandline options.
+Reads key-value pairs from a file and treats them as command-line options.
 
 ```c
 int sl_conf_readopts(const char *filename, sl_option_t *options);
@@ -421,7 +421,7 @@ key2
 key3 = "quoted value"
 ```
 
-Each noncomment line is converted to `--key=value` (or `--key` if no value) and passed to
+Each non-comment line is converted to `--key=value` (or `--key` if no value) and passed to
 `sl_parseargs`. Returns the number of recognized options.
 
 `sl_print_opts` generates a string representation of current option values (useful for debugging or
@@ -435,7 +435,7 @@ saving state). The returned string must be freed with `free()`.
 int sl_daemonize(void);
 void sl_check4running(char *selfname, char *pidfilename);
 char *sl_getPSname(pid_t pid);
-void sl_iffound_deflt(pid_t pid);  // WEAK  overridable
+void sl_iffound_deflt(pid_t pid);  // WEAK - overridable
 ```
 
 `sl_daemonize()`:
@@ -463,7 +463,7 @@ void sl_iffound_deflt(pid_t pid) {
 
 ### FIFO / LIFO Linked List
 
-A simple singlylinked list with both head and tail pointers.
+A simple singly-linked list with both head and tail pointers.
 
 ```c
 typedef struct sl_buff_node {
@@ -483,7 +483,7 @@ the data if needed.
 
 ### Ring Buffer
 
-A threadsafe, fixedsize ring buffer for byte streams, protected by `pthread_mutex_t`.
+A thread-safe, fixed-size ring buffer for byte streams, protected by `pthread_mutex_t`.
 
 ```c
 typedef struct {
@@ -517,7 +517,7 @@ Key behaviors:
 
 ### TCP / UNIX Socket Server & Client
 
-A highlevel socket framework supporting TCP and UNIX domain sockets, with builtin HTTP method
+A high-level socket framework supporting TCP and UNIX domain sockets, with built-in HTTP method
 detection.
 
 **Socket types:**
@@ -537,7 +537,7 @@ void sl_sock_delete(sl_sock_t **sock);
 
 - `path` for UNIX sockets: file path; prefix with `\0` or `@` for abstract namespace.
 - `path` for INET sockets: `"host:port"` (client) or `":port"` (server).
-- `handlers`: `NULL`terminated array of keyvalue handlers (see below).
+- `handlers`: `NULL`-terminated array of key-value handlers (see below).
 - `bufsiz`: internal ring buffer size (minimum 256).
 
 **Sending data:**
@@ -578,7 +578,7 @@ typedef enum {
 } sl_sock_hresult_e;
 ```
 
-Builtin handlers for common types:
+Built-in handlers for common types:
 
 ```c
 sl_sock_hresult_e sl_sock_inthandler(...);  // int64_t
@@ -607,7 +607,7 @@ void sl_sock_defmsghandler(sl_sock_t *sock, sl_sock_hresult_e (*h)(struct sl_soc
 
 The server thread automatically handles `POLLIN` events, parses messages using `sl_get_keyval`, and
 dispatches them to matching handlers. HTTP `GET`/`POST` requests are partially parsed: `GET`
-parameters are URLdecoded and dispatched; `POST` data is accumulated and then parsed.
+parameters are URL-decoded and dispatched; `POST` data is accumulated and then parsed.
 
 ---
 
@@ -634,7 +634,7 @@ void sl_tty_close(sl_tty_t **descr);
 int sl_tty_tmout(double usec);
 ```
 
-Format string: three characters  data bits (58), parity (N/E/O/0/1), stop bits (1/2). Example:
+Format string: three characters - data bits (5-8), parity (N/E/O/0/1), stop bits (1/2). Example:
 `"8N1"`.
 
 Uses `struct termios2` via `ioctl(TCGETS2/TCSETS2)` to support arbitrary baud rates (not limited to
@@ -667,7 +667,7 @@ int sl_get_suboption(char *str, sl_suboption_t *opt);
 ```
 
 The input string is tokenized on `:` and `,`; each token is matched against option names
-(caseinsensitive).
+(case-insensitive).
 
 ---
 
@@ -677,8 +677,8 @@ The input string is tokenized on `:` and `,`; each token is matched against opti
 const char *sl_libversion(void);    // returns PACKAGE_VERSION string
 double sl_dtime(void);              // UNIX time as double (seconds)
 long sl_random_seed(void);          // seed from /dev/random or time
-int sl_canread(int fd);             // nonblocking select() for read
-int sl_canwrite(int fd);            // nonblocking select() for write
+int sl_canread(int fd);             // non-blocking select() for read
+int sl_canwrite(int fd);            // non-blocking select() for write
 ```
 
 ---
@@ -687,13 +687,13 @@ int sl_canwrite(int fd);            // nonblocking select() for write
 
 | Structure | Purpose |
 |-----------|---------|
-| `sl_option_t` | Commandline option descriptor |
-| `sl_suboption_t` | Suboption descriptor |
+| `sl_option_t` | Command-line option descriptor |
+| `sl_suboption_t` | Sub-option descriptor |
 | `sl_tty_t` | Serial port state |
 | `sl_log_t` | Log file descriptor |
-| `sl_mmapbuf_t` | Memorymapped file |
+| `sl_mmapbuf_t` | Memory-mapped file |
 | `sl_list_t` | Linked list node |
-| `sl_ringbuffer_t` | Threadsafe ring buffer |
+| `sl_ringbuffer_t` | Thread-safe ring buffer |
 | `sl_sock_t` | Socket state (client or server) |
 | `sl_sock_hitem_t` | Socket handler item |
 | `sl_sock_int_t` | Timestamped `int64_t` |
@@ -710,8 +710,8 @@ The repository includes several example programs in the `examples/` directory:
 | Example | Demonstrates |
 |---------|-------------|
 | `helloworld` | Minimal usage: `sl_init`, colored output, `sl_setup_con`/`sl_getchar`/`sl_restore_con` |
-| `options` + `cmdlnopts` | Full commandline parsing with all types, logging, serial port, signals |
-| `conffile` | Configuration file reading, `sl_print_opts`, multiparameters |
+| `options` + `cmdlnopts` | Full command-line parsing with all types, logging, serial port, signals |
+| `conffile` | Configuration file reading, `sl_print_opts`, multi-parameters |
 | `fifo` | LIFO and FIFO list operations |
 | `ringbuffer` | Ring buffer creation, line reading, overflow handling |
 | `clientserver` | Socket server/client with custom handlers, bit flags, logging |
@@ -744,7 +744,7 @@ expected in the `locale/` directory. The library generates `.po` and `.mo` files
 - **Ring buffer:** all operations are protected by a `pthread_mutex_t`.
 - **Logging:** file writes are guarded with `flock(LOCK_EX)`.
 - **Sockets:** server thread uses `poll()`; client read thread is separate; send operations lock the socket mutex.
-- **Console I/O:** `sl_setup_con`/`sl_read_con`/`sl_getchar`/`sl_restore_con` are **not** threadsafe (global terminal state).
+- **Console I/O:** `sl_setup_con`/`sl_read_con`/`sl_getchar`/`sl_restore_con` are **not** thread-safe (global terminal state).
 
 ---
 
