@@ -140,9 +140,11 @@ int sl_daemonize(){
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-    if(open("/dev/null", O_RDWR) < 0) return -1;
-    if(dup(0) < 0) return -1;
-    if(dup(0) < 0) return -1;
+    int ofd = open("/dev/null", O_RDWR);
+    if(ofd < 0) return -1;
+    if(dup(ofd) < 0) return -1; // STDIN
+    if(dup(ofd) < 0) return -1; // STDOUT
+    if(dup(ofd) < 0) return -1; // STDERR
     if(SIG_ERR == signal(SIGHUP, SIG_IGN)) return -1;
     return 0;
 }
