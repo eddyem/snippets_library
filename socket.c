@@ -738,7 +738,7 @@ int sl_sock_open(sl_socktype_e type, const char *path, int isserver, int ai_sock
             }
         }else{
             if(connect(sock, p->ai_addr, p->ai_addrlen) == -1){
-                WARN("connect()");
+                //WARN("connect()");
                 close(sock); sock = -1;
                 continue;
             }
