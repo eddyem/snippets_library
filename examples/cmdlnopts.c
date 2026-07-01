@@ -52,6 +52,8 @@ static glob_pars const Gdefault = {
  *  name        has_arg     flag    val     type        argptr              help
  *  BE carefull! The `help` field is mandatory! Omitting it equivalent of 'end_option'
 */
+// if val < 33 || val > 127 we mean this like long-only option;
+// you can repeat the same `val` for several long-only options without any problem
 static sl_option_t cmdlnopts[] = {
     // short option in only-long options should be zeroed, or you can add flag to set it to given value
     {"lo0",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo0),       _("only long arg 0 (int)")},

@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: PACKAGE VERSION\n"
         "Report-Msgid-Bugs-To: \n"
-        "POT-Creation-Date: 2026-03-04 17:30+0300\n"
+        "POT-Creation-Date: 2026-03-31 11:31+0300\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,7 +35,7 @@ msgstr  "sl_conf_showhelp(): неверный индекс"
 msgid   "Configuration file options (format: key=value):\n"
 msgstr  "Опции конфигурационного файла (формат: ключ=значение):\n"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:69
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:70
 #, c-format
 msgid   "\n"
         "Found running process (pid=%d), exit.\n"
@@ -43,11 +43,11 @@ msgstr  "\n"
         "Обнаружен одноименный процесс (pid=%d), выход.\n"
 
 #. error reading self name
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:117
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:95
 msgid   "Can't read self name"
 msgstr  "Не могу прочесть имя процесса"
 
-#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:141
+#: /home/eddy/Docs/SAO/C_diff/snippets_library/daemon.c:119
 msgid   "Can't open PID file"
 msgstr  "Не могу открыть PID файл"
 
@@ -236,5 +236,3 @@ msgstr  "Не могу munmap"
 #: /home/eddy/Docs/SAO/C_diff/snippets_library/usefull_macros.c:331
 msgid   "Can't setup console"
 msgstr  "Не могу настроить консоль"
-
-#, c-format

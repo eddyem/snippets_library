@@ -30,6 +30,9 @@
 #include <ctype.h>  // isalpha
 #include "usefull_macros.h"
 
+// check `val` field: if it's <33 || >127 - it's just ordered number, not short option
+#define CHKOPTVAL(Oval)        ((Oval) > 32 && (Oval) < 128)
+
 const char *helpstring = NULL; // will be inited later, can't init with gettext on this stage
 
 /**
@@ -130,8 +133,15 @@ static int get_optind(const char *key, int opt, sl_option_t *options, void (*hel
         helpfun(-1, options);
         return -1; // never reached until `helpfun` changed
     }else if(opt == ':') theopt = optopt; // search to show helpstring "need parameter"
-    for(oind = 0; opts->help && opts->val != theopt; oind++, opts++){
-        DBG("cmp %c and %c", theopt, opts->val);
+    if(key[1] != '-'){ // search by unique short option
+        for(oind = 0; opts->help && opts->val != theopt; oind++, opts++){
+            DBG("cmp %c and %c", theopt, opts->val);
+        }
+    }else{ // search by long option
+        key += 2;
+        for(oind = 0; opts->help; oind++, opts++){
+            if(opts->name && 0 == strcmp(key, opts->name)) break;
+        }
     }
     if(!opts->help) return -1;
     if(opt == ':'){
@@ -249,7 +259,7 @@ void sl_parseargs_hf(int *argc, char ***argv, sl_option_t *options, void (*helpf
         loptr->flag     = opts->flag;
         loptr->val      = opts->val;
         // fill short options if they are:
-        if(!opts->flag && opts->val){
+        if(!opts->flag && CHKOPTVAL(opts->val)){
             shortlist[i] = (char) opts->val;
             *soptr++ = opts->val;
             if(loptr->has_arg) // add ':' if option has required argument
@@ -371,21 +381,22 @@ void sl_parseargs(int *argc, char ***argv, sl_option_t *options){
 
 /**
  * @brief argsort - compare function for qsort
- * first - sort by short options; second - sort arguments without sort opts (by long options)
+ * first - sort by short options; second - sort arguments without short opts (by long options)
  */
 static int argsort(const void *a1, const void *a2){
     const sl_option_t *o1 = (sl_option_t*)a1, *o2 = (sl_option_t*)a2;
     const char *l1 = o1->name, *l2 = o2->name;
     int s1 = o1->val, s2 = o2->val;
+    int chk1 = CHKOPTVAL(s1), chk2 = CHKOPTVAL(s2);
     int *f1 = o1->flag, *f2 = o2->flag;
     // check if both options has short arg
-    if(f1 == NULL && f2 == NULL && s1 && s2){ // both have short arg
+    if(f1 == NULL && f2 == NULL && chk1 && chk2){ // both have short arg
         return (s1 - s2);
-    }else if((f1 != NULL || !s1) && (f2 != NULL || !s2)){ // both don't have short arg - sort by long
+    }else if((f1 != NULL || !chk1) && (f2 != NULL || !chk2)){ // both don't have short arg - sort by long
         assert(l1); assert(l2); // no way to omit long option if short is absent
         return strcmp(l1, l2);
     }else{ // only one have short arg -- return it
-        if(f2 || !s2) return -1; // a1 have short - it is 'lesser'
+        if(f2 || !chk2) return -1; // a1 have short - it is 'lesser'
         else return 1;
     }
 }
@@ -394,7 +405,7 @@ static int argsort(const void *a1, const void *a2){
 static void pr_helpstring(sl_option_t *opt, char *buf, int indent, size_t bufsz){
     size_t p = sprintf(buf, "  "); // a little indent
     int havelongopt = opt->name && *opt->name;
-    if(!opt->flag && opt->val){ // .val is short argument
+    if(!opt->flag && CHKOPTVAL(opt->val)){ // .val is short argument
         p += snprintf(buf+p, bufsz-p, "-%c", opt->val);
         if(havelongopt) p += snprintf(buf+p, bufsz-p, ", "); // show comma only it there's shor arg
     }
