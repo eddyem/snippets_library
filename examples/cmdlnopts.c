@@ -56,7 +56,7 @@ static glob_pars const Gdefault = {
 // you can repeat the same `val` for several long-only options without any problem
 static sl_option_t cmdlnopts[] = {
     // short option in only-long options should be zeroed, or you can add flag to set it to given value
-    {"lo0",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo0),       _("only long arg 0 (int)")},
+    {"longonly",NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo0),       _("only long arg 0 (int)")},
     // for short-only options long option can be NULL
     {NULL,      NEED_ARG,   NULL,   '0',    arg_string, APTR(&G.so1),       _("only short arg 1 (string)")},
     // if you change `arg_int` to `arg_none`, value will be incremented each `-h`
@@ -73,7 +73,7 @@ static sl_option_t cmdlnopts[] = {
     {"Int",     MULT_PAR,   NULL,   'I',    arg_int,    APTR(&G.intarr),    _("integer parameter")},
     {"Dbl",     MULT_PAR,   NULL,   'D',    arg_double, APTR(&G.dblarr),    _("double parameter")},
     {"Str",     MULT_PAR,   NULL,   'S',    arg_string, APTR(&G.strarr),    _("string parameter")},
-    {"lo1",     NEED_ARG,   NULL,     0,    arg_int,    APTR(&G.lo1),       _("only long arg 1 (int)")},
+    {"long1",     NEED_ARG,   NULL,   0,    arg_int,    APTR(&G.lo1),       _("only long arg 1 (int)")},
     end_option
 };
 

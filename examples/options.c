@@ -93,9 +93,9 @@ int main(int argc, char *argv[]){
             printf("String[%d]: \"%s\"\n", i, *p++);
         }
     }
-    if(GP->lo0 != INT_MIN) printf("You set lo0 to %d\n", GP->lo0);
-    if(GP->lo1 != INT_MIN) printf("You set lo1 to %d\n", GP->lo1);
-    if(GP->lo2 != INT_MIN) printf("You set lo2 to %d\n", GP->lo2);
+    if(GP->lo0 != INT_MIN) printf("You set long 0 to %d\n", GP->lo0);
+    if(GP->lo1 != INT_MIN) printf("You set long 1 to %d\n", GP->lo1);
+    if(GP->lo2 != INT_MIN) printf("You set long 2 to %d\n", GP->lo2);
     if(GP->so1){
         sl_remove_quotes(GP->so1);
         printf("String so1=%s\n", GP->so1);

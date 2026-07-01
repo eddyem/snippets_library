@@ -127,6 +127,7 @@ static int get_optind(const char *key, int opt, sl_option_t *options, void (*hel
     int oind = 0, theopt = opt;
     sl_option_t *opts = options;
     assert(opts);
+    //printf("key: %s\n", key);
     // `opt` should be ':' for "missed arguments", '?' for "not found" and short flag if found and checked
     if(opt == '?'){ // not found
         fprintf(stderr, _("No such parameter: `%s`\n"), key);
@@ -134,18 +135,25 @@ static int get_optind(const char *key, int opt, sl_option_t *options, void (*hel
         return -1; // never reached until `helpfun` changed
     }else if(opt == ':') theopt = optopt; // search to show helpstring "need parameter"
     if(key[1] != '-'){ // search by unique short option
+        //printf("Short %c\n", theopt);
         for(oind = 0; opts->help && opts->val != theopt; oind++, opts++){
             DBG("cmp %c and %c", theopt, opts->val);
         }
     }else{ // search by long option
         key += 2;
+        int l = strlen(key);
         for(oind = 0; opts->help; oind++, opts++){
-            if(opts->name && 0 == strcmp(key, opts->name)) break;
+            //printf("comp %s and %s\n", key, opts->name);
+            if(opts->name && 0 == strncmp(key, opts->name, l)) break;
         }
     }
-    if(!opts->help) return -1;
+    if(!opts->help){
+        //printf("Not found\n");
+        return -1;
+    }
     if(opt == ':'){
-        fprintf(stderr, _("Parameter `%s` needs value\n"), key);
+        if(options[oind].name) fprintf(stderr, _("Parameter `--%s` needs value\n"), options[oind].name);
+        else fprintf(stderr, _("Parameter `-%c` needs value\n"), options[oind].val);
         helpfun(oind, options);
         return -1; // never reached until `helpfun` changed
     }
