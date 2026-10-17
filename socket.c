@@ -291,6 +291,28 @@ static sl_sock_hresult_e parse_post_data(sl_sock_t *c, char *str){
     return RESULT_SILENCE;
 }
 
+// stub for comment string in help
+sl_sock_hresult_e sl_comment(_U_ struct sl_sock *s, _U_ struct sl_sock_hitem *item, _U_ const char *val){
+    return RESULT_SILENCE;
+}
+
+static sl_sock_hresult_e sendhelp(sl_sock_t *client){
+    if(!client->handlers || !client->handlers->handler) return RESULT_FAIL;
+    sl_sock_sendstrmessage(client, "\nHelp:\n");
+    for(sl_sock_hitem_t *h = client->handlers; h->handler; ++h){
+        if(h->help){
+            if(h->key){
+                sl_sock_sendstrmessage(client, h->key);
+                sl_sock_sendstrmessage(client, ": ");
+            }
+            sl_sock_sendstrmessage(client, h->help);
+            sl_sock_sendbyte(client, '\n');
+        }
+    }
+    sl_sock_sendbyte(client, '\n');
+    return RESULT_SILENCE;
+}
+
 // parser of client's message
 // "only-server's" fields of `client` are copies of server's
 static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
@@ -319,22 +341,10 @@ static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
     }
     if(N == 1) valptr = NULL;
     else valptr = val;
-    if(0 == strcmp(key, "help")){
-        sl_sock_sendstrmessage(client, "\nHelp:\n");
-        for(sl_sock_hitem_t *h = client->handlers; h->handler; ++h){
-            if(h->help){
-                sl_sock_sendstrmessage(client, h->key);
-                sl_sock_sendstrmessage(client, ": ");
-                sl_sock_sendstrmessage(client, h->help);
-                sl_sock_sendbyte(client, '\n');
-            }
-        }
-        sl_sock_sendbyte(client, '\n');
-        return RESULT_SILENCE;
-    }
+    if(0 == strcmp(key, "help")) return sendhelp(client);
     // check for strict params like `key=val`
     for(sl_sock_hitem_t *h = client->handlers; h->handler; ++h){
-        if(strcmp(h->key, key)) continue;
+        if(!h->key || strcmp(h->key, key)) continue;
         if(h->data){
             sl_sock_keyno_t *kn = (sl_sock_keyno_t*)h->data;
             if(-1 == isinf(kn->magick)) kn->n = -1; // no value number
@@ -370,7 +380,7 @@ static sl_sock_hresult_e msgparser(sl_sock_t *client, char *str){
         if(eptr != numstart && LL >= 0 && LL <= INT_MAX){
             int parno = (int)LL;
             for(sl_sock_hitem_t *h = client->handlers; h->handler; ++h){
-                if(strncmp(h->key, key, keylen)) continue; // now search only in first `keylen` bytes
+                if(!h->key || strncmp(h->key, key, keylen)) continue; // now search only in first `keylen` bytes
                 DBG("found %s", h->key);
                 if(h->data){
                     sl_sock_keyno_t *kn = (sl_sock_keyno_t*)h->data;

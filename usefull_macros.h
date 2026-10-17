@@ -451,6 +451,8 @@ typedef struct sl_sock_hitem{
     void *data;                 // user data (e.g. struct key-varptr-limits)
 } sl_sock_hitem_t;
 
+sl_sock_hresult_e sl_comment(struct sl_sock *s, struct sl_sock_hitem *item, const char *val);
+
 // socket type
 typedef enum{
     SOCKT_UNIX,     // UNIX socket
@@ -531,3 +533,12 @@ int sl_sock_sendall(sl_sock_t *sock, uint8_t *data, size_t len);
 sl_sock_hresult_e sl_sock_inthandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
 sl_sock_hresult_e sl_sock_dblhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
 sl_sock_hresult_e sl_sock_strhandler(sl_sock_t *client, sl_sock_hitem_t *hitem, const char *str);
+
+/******************************************************************************\
+                         Sorting functions
+\******************************************************************************/
+int sl_cmpchar(const void *p1, const void *p2);
+int sl_cmpint(const void *p1, const void *p2);
+int sl_cmpdouble(const void *p1, const void *p2);
+int sl_cmpstring(const void *p1, const void *p2);
+int sl_cmpstringp(const void *p1, const void *p2);

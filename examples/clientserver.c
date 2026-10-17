@@ -207,12 +207,15 @@ static sl_sock_hresult_e keyparhandler(struct sl_sock *s, sl_sock_hitem_t *item,
 }
 
 static sl_sock_hitem_t handlers[] = {
+    {sl_comment, NULL, "    Using library parsers:", NULL},
     {sl_sock_inthandler, "int", "set/get integer flag", (void*)&iflag},
     {sl_sock_dblhandler, "dbl", "set/get double flag", (void*)&dflag},
     {sl_sock_strhandler, "str", "set/get string variable", (void*)&sflag},
+    {sl_comment, NULL, "    Using key numbers:", NULL},
+    {keyparhandler, "flags", "set/get bit flags as whole (flags=val) or by bits (flags[bit]=val)", (void*)&kph_number},
+    {sl_comment, NULL, "    Other functions:", NULL},
     {show, "show", "show current flags @ server console", NULL},
     {dtimeh, "dtime", "get server's UNIX time for all clients connected", NULL},
-    {keyparhandler, "flags", "set/get bit flags as whole (flags=val) or by bits (flags[bit]=val)", (void*)&kph_number},
     {NULL, NULL, NULL, NULL}
 };
 

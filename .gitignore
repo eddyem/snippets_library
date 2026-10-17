@@ -1,6 +1,12 @@
 # Prerequisites
 *.d
 
+# Build
+mk/
+
+# Backups
+*.bk
+
 # Object files
 *.o
 

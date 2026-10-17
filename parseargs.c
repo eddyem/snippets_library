@@ -210,18 +210,6 @@ void *get_aptr(void *paptr, sl_argtype_e type){
     return aptr[i - 1];
 }
 
-static int cmpstringp(const void *p1, const void *p2){
-    if(!p1 || !p2) return 0;
-    const char *str1 = * (char * const *) p1, *str2 = * (char * const *) p2;
-    if(!str1 && !str2) return 0;
-    else if(!str1) return 1;
-    else if(!str2) return -1;
-    return strcmp(str1, str2);
-}
-static int cmpcharp(const void *p1, const void *p2){
-    return (int)(*(char * const)p1 - *(char *const)p2);
-}
-
 /**
  * @brief sl_parseargs_hf - parse arguments with user help funtion
  * @param argc - amount of arguments
@@ -277,8 +265,8 @@ void sl_parseargs_hf(int *argc, char ***argv, sl_option_t *options, void (*helpf
         }
     }
     // sort all lists & check for repeating
-    qsort(longlist, optsize, sizeof(char *), cmpstringp);
-    qsort(shortlist,optsize, sizeof(char), cmpcharp);
+    qsort(longlist, optsize, sizeof(char *), sl_cmpstringp);
+    qsort(shortlist,optsize, sizeof(char), sl_cmpchar);
     char *prevl = longlist[0], prevshrt = shortlist[0];
     // check for repeated args
     for(int i = 1; i < optsize; ++i){

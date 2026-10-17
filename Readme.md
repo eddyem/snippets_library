@@ -569,6 +569,17 @@ typedef struct sl_sock_hitem {
 } sl_sock_hitem_t;
 ```
 
+
+
+Field `help` allows you to show help message for `key` when user sends "help" message, format:
+"key: help". All items shown are strictly in user's order.
+
+Field and `key` could be NULL, in this case "help" for this item will just send string in `help`.
+The `handler` in this case should be inited with `sl_comment`.
+
+Field `data` is for internal user's usage or for key numbering (see later).
+End of list is `handler == NULL`.
+
 Handler results:
 
 ```c
@@ -587,6 +598,9 @@ sl_sock_hresult_e sl_sock_strhandler(...);  // string
 ```
 
 **Optional key numbering** (`key[0]`, `key(1)`, `key{2}`, `key3`):
+
+In this case you should init field `data` in `sl_sock_hitem_t` with pointer to `sl_sock_keyno_t`.
+Then the appropriate handler called with `sl_sock_keyno_t->n` inited with this number.
 
 ```c
 typedef struct { double magick; int n; } sl_sock_keyno_t;
@@ -680,6 +694,16 @@ long sl_random_seed(void);          // seed from /dev/random or time
 int sl_canread(int fd);             // non-blocking select() for read
 int sl_canwrite(int fd);            // non-blocking select() for write
 ```
+
+### Sorting helpers
+
+With `qsort()` you can use these functions:
+
+- `sl_cmpchar` - sort array of chars;
+- `sl_cmpint` - sort array of integers;
+- `sl_cmpdouble` - sort array of doubles;
+- `sl_cmpstring` - sort array of `char*`;
+- `sl_cmpstringp` - sort array of `char**`.
 
 ---
 

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 4.0)
 set(PROJ usefull_macros)
-set(MINOR_VERSION "5")
+set(MINOR_VERSION "6")
 set(MID_VERSION "3")
 set(MAJOR_VERSION "0")
 set(VERSION "${MAJOR_VERSION}.${MID_VERSION}.${MINOR_VERSION}")
@@ -25,9 +25,12 @@ endif()
 add_definitions(-DTHREAD_NUMBER=${PROCESSOR_COUNT})
 message("In multithreaded operations will use ${PROCESSOR_COUNT} threads")
 
+option(EXAMPLES "Build examples" OFF)
+option(DEBUG "Compile in debug mode" OFF)
+
 # cmake -DDEBUG=1 -> debugging
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    if(DEFINED DEBUG AND DEBUG EQUAL 1)
+    if(DEBUG)
         set(CMAKE_BUILD_TYPE "Debug")
     else()
         set(CMAKE_BUILD_TYPE "Release")
@@ -116,7 +119,7 @@ install(TARGETS ${PROJ} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 install(FILES ${PCFILE} DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
 # EXAMPLES
-if(DEFINED EXAMPLES AND EXAMPLES EQUAL 1)
+if(EXAMPLES)
     add_subdirectory(examples)
 endif()
 
